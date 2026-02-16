@@ -1,43 +1,42 @@
+// Force dynamic rendering - NO CACHE
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+export const fetchCache = 'force-no-store';
+
 'use client';
 
 import { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
-// Debug: show what Supabase URL we're using
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://plojsqsjykzqwdaolfpi.supabase.co';
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable_r61eP5kLy0S15KiUXr4x0g_Fh0368BQ';
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-export default function SimpleHome() {
+export default function Home() {
   const [events, setEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [debug, setDebug] = useState<string>('');
 
   useEffect(() => {
-    console.log('Supabase URL:', supabaseUrl);
-    setDebug(`URL: ${supabaseUrl}`);
+    setDebug(`URL: ${supabaseUrl.slice(-20)} | Chain: 84532`);
     
     async function fetchEvents() {
       try {
-        console.log('Fetching events...');
         const { data, error } = await supabase
           .from('events')
           .select('*')
-          .order('created_at', { ascending: false });
-
-        console.log('Data:', data);
-        console.log('Error:', error);
+          .order('created_at', { ascending: false })
+          .limit(50);
 
         if (error) {
-          setError(JSON.stringify(error));
+          setError(error.message);
         } else {
           setEvents(data || []);
-          setDebug(prev => `${prev} | Events: ${data?.length || 0}`);
+          setDebug(prev => `${prev} | Count: ${data?.length || 0}`);
         }
       } catch (e: any) {
-        console.error('Exception:', e);
         setError(e.message);
       } finally {
         setLoading(false);
@@ -55,19 +54,10 @@ export default function SimpleHome() {
       <h1 className="text-3xl font-bold mb-2">PULSE Protocol</h1>
       <p className="text-xs text-gray-500 mb-8">{debug}</p>
       
-      <div className="mb-6">
-        <a 
-          href="https://pulseprotocol.co/dashboard" 
-          className="inline-block px-6 py-3 bg-purple-600 rounded-lg hover:bg-purple-700"
-        >
-          Connect Wallet →
-        </a>
-      </div>
-
       <h2 className="text-xl font-semibold mb-4">Events ({events.length})</h2>
       
       {events.length === 0 ? (
-        <p className="text-gray-500">No events found in database.</p>
+        <p className="text-gray-500">No events found.</p>
       ) : (
         <div className="space-y-4">
           {events.map((event) => (
@@ -80,12 +70,8 @@ export default function SimpleHome() {
                 <h3 className="text-lg font-medium">{event.title}</h3>
               </div>
               <div className="flex gap-3 text-sm">
-                <span className="px-2 py-1 bg-gray-800 rounded">
-                  #{event.event_id}
-                </span>
-                <span className="px-2 py-1 bg-gray-800 rounded">
-                  {event.source_type}
-                </span>
+                <span className="px-2 py-1 bg-gray-800 rounded">#{event.event_id}</span>
+                <span className="px-2 py-1 bg-gray-800 rounded">{event.source_type}</span>
                 <span className={`px-2 py-1 rounded ${
                   event.status === 'VERIFIED' ? 'bg-green-900 text-green-400' :
                   event.status === 'CHALLENGED' ? 'bg-red-900 text-red-400' :
