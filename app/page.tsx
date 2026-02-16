@@ -1,16 +1,57 @@
 import { Suspense } from 'react';
 import { ProtocolEvent } from '@/types';
-import { protocolEvents } from '@/lib/data';
+import { supabase } from '@/lib/supabase';
 import HomeClient from './HomeClient';
-import BadgeDemo from '@/components/BadgeDemo';
 
 // ISR: Revalidate every 5 minutes
 export const revalidate = 300;
 
+async function getEventsFromSupabase(): Promise<{ feeds: ProtocolEvent[]; error: string | null }> {
+  try {
+    // Fetch canonical events from Supabase
+    const { data: events, error: eventsError } = await supabase
+      .from('canonical_events')
+      .select(`
+        *,
+        assertions(*)
+      `)
+      .order('created_at', { ascending: false })
+      .limit(50);
+
+    if (eventsError) {
+      console.error('Supabase error:', eventsError);
+      return { feeds: [], error: eventsError.message };
+    }
+
+    // Transform to ProtocolEvent format
+    const feeds: ProtocolEvent[] = (events || []).map((event: any) => ({
+      id: event.event_id,
+      title: event.title || `Event #${event.event_id}`,
+      description: event.description || '',
+      timestamp: event.created_at,
+      source: event.source || 'ONCHAIN',
+      sourceUrl: event.source_url || '',
+      chain: event.chain || 'base-sepolia',
+      eventType: event.event_type || 'GENERIC',
+      canonicalHash: event.canonical_hash,
+      status: event.assertions?.some((a: any) => a.status === 'VERIFIED') 
+        ? 'VERIFIED' 
+        : event.assertions?.some((a: any) => a.status === 'CHALLENGED')
+        ? 'CHALLENGED'
+        : 'UNVERIFIED',
+      assertions: event.assertions || [],
+      assertion: event.assertions?.[0] || null,
+    }));
+
+    return { feeds, error: null };
+  } catch (err: any) {
+    console.error('Error fetching events:', err);
+    return { feeds: [], error: err.message };
+  }
+}
+
 export default async function Home() {
-  // Use protocol-native mock data
-  let feeds: ProtocolEvent[] = protocolEvents;
-  let error: string | null = null;
+  const { feeds, error } = await getEventsFromSupabase();
 
   return (
     <Suspense fallback={
