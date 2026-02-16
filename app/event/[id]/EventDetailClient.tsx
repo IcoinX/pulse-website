@@ -9,6 +9,9 @@ import {
   getStatusIcon,
   getCategoryColor,
   getCategoryLabel,
+  getVerificationStatusColor,
+  getVerificationStatusIcon,
+  getVerificationStatusLabel,
 } from '@/lib/data';
 import { 
   ArrowLeft, 
@@ -30,10 +33,13 @@ import {
   MessageSquare,
   FileText,
   Bot,
-  ChevronRight
+  ChevronRight,
+  Lock,
+  Database
 } from 'lucide-react';
 import { useState } from 'react';
 import toast from 'react-hot-toast';
+import CanonicalEventView from '@/components/CanonicalEventView';
 
 interface EventDetailClientProps {
   feed: ProtocolEvent;
@@ -196,6 +202,32 @@ const ProofTagComponent = ({ tag }: { tag: ProofTagType }) => {
   );
 };
 
+// Sprint 1.5: Ghost Action Button
+const GhostActionButton = ({ 
+  icon: Icon,
+  label,
+  tooltip,
+  colorClass = 'text-gray-400'
+}: { 
+  icon: React.ElementType;
+  label: string;
+  tooltip: string;
+  colorClass?: string;
+}) => (
+  <div className="relative group">
+    <button 
+      disabled
+      className={`flex items-center gap-2 px-4 py-2 text-sm font-medium opacity-50 cursor-not-allowed ${colorClass} bg-white/5 rounded-lg transition-colors`}
+    >
+      <Lock className="w-4 h-4" />
+      {label}
+    </button>
+    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-xs text-gray-300 rounded-lg border border-white/10 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-20 shadow-lg">
+      {tooltip}
+    </div>
+  </div>
+);
+
 // Annotation component
 const AnnotationItem = ({ annotation }: { annotation: Annotation }) => {
   return (
@@ -297,7 +329,7 @@ export default function EventDetailClient({ feed }: EventDetailClientProps) {
           transition={{ duration: 0.5 }}
           className="bg-white/5 backdrop-blur-sm rounded-2xl p-6 sm:p-8 border border-white/10"
         >
-          {/* Category & Status Row */}
+          {/* Category & Status Row - Sprint 1.5: Added Verification Status */}
           <div className="flex flex-wrap items-center gap-3 mb-6">
             <span className={`text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full border ${getStatusBgColor(feed.status)}`}>
               <span className="flex items-center gap-1.5">
@@ -305,6 +337,15 @@ export default function EventDetailClient({ feed }: EventDetailClientProps) {
                 {feed.status}
               </span>
             </span>
+            
+            {/* Sprint 1.5: Verification Status Badge */}
+            <span className={`text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full border ${getVerificationStatusColor(feed.verificationStatus)}`}>
+              <span className="flex items-center gap-1.5">
+                <span>{getVerificationStatusIcon(feed.verificationStatus)}</span>
+                {getVerificationStatusLabel(feed.verificationStatus)}
+              </span>
+            </span>
+            
             <span className={`text-xs font-bold uppercase tracking-wider ${getCategoryColor(feed.category)}`}>
               {getCategoryLabel(feed.category)}
             </span>
@@ -445,6 +486,16 @@ export default function EventDetailClient({ feed }: EventDetailClientProps) {
           </div>
         </motion.article>
 
+        {/* Sprint 1.5: Event Registry Section with CanonicalEventView */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.05 }}
+          className="mt-6"
+        >
+          <CanonicalEventView event={feed} />
+        </motion.div>
+
         {/* Validation Timeline */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -540,37 +591,36 @@ export default function EventDetailClient({ feed }: EventDetailClientProps) {
         </motion.div>
       </main>
 
-      {/* Sticky Actions Bar */}
+      {/* Sticky Actions Bar - Sprint 1.5: Ghost Actions with Lock */}
       <div className="fixed bottom-0 left-0 right-0 bg-black/90 backdrop-blur-md border-t border-white/10 z-40">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <span className="text-sm text-gray-400 hidden sm:inline">Event Actions:</span>
               <div className="flex items-center gap-2">
-                <button 
-                  disabled
-                  className="flex items-center gap-2 px-4 py-2 bg-green-500/20 text-green-400 rounded-lg text-sm font-medium opacity-50 cursor-not-allowed"
-                  title="coming online"
-                >
-                  <ChevronUp className="w-4 h-4" />
-                  Boost
-                </button>
-                <button 
-                  disabled
-                  className="flex items-center gap-2 px-4 py-2 bg-orange-500/20 text-orange-400 rounded-lg text-sm font-medium opacity-50 cursor-not-allowed"
-                  title="coming online"
-                >
-                  <AlertTriangle className="w-4 h-4" />
-                  Challenge
-                </button>
-                <button 
-                  disabled
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-500/20 text-blue-400 rounded-lg text-sm font-medium opacity-50 cursor-not-allowed"
-                  title="coming online"
-                >
-                  <MessageSquare className="w-4 h-4" />
-                  Discuss
-                </button>
+                {/* Sprint 1.5: Challenge Ghost Action */}
+                <GhostActionButton 
+                  icon={AlertTriangle}
+                  label="Challenge"
+                  tooltip="Requires wallet connection"
+                  colorClass="text-orange-400"
+                />
+                
+                {/* Sprint 1.5: Boost Ghost Action */}
+                <GhostActionButton 
+                  icon={ChevronUp}
+                  label="Boost"
+                  tooltip="Requires wallet + GENESIS"
+                  colorClass="text-green-400"
+                />
+                
+                {/* Sprint 1.5: Submit Evidence Ghost Action */}
+                <GhostActionButton 
+                  icon={Shield}
+                  label="Submit Evidence"
+                  tooltip="Requires wallet connection"
+                  colorClass="text-blue-400"
+                />
               </div>
             </div>
             <a

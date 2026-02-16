@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { AgentEvent, AgentEventType, AgentEventSourceKind } from '@/types';
+import { AgentEvent, AgentEventType, AgentEventSourceKind, VerificationStatus } from '@/types';
 import { 
   formatTimeAgo 
 } from '@/lib/data';
@@ -21,7 +21,9 @@ import {
   Twitter,
   TrendingUp,
   TrendingDown,
-  Activity
+  Activity,
+  Lock,
+  Newspaper
 } from 'lucide-react';
 
 interface AgentEventCardProps {
@@ -101,6 +103,83 @@ const STATUS_CONFIG: Record<string, { icon: React.ReactNode; color: string; labe
   },
 };
 
+// Sprint 1.5: Verification Status Badge for Agent Events
+const VerificationStatusBadge = ({ event }: { event: AgentEvent }) => {
+  // Determine verification status based on event properties
+  let status: VerificationStatus = 'UNVERIFIED';
+  let reason = 'Awaiting cross-source confirmation';
+  
+  if (event.status === 'CHALLENGED') {
+    status = 'CHALLENGED';
+    reason = 'Under dispute - validator review pending';
+  } else if (event.verification.badge === 'VERIFIED' || 
+             (event.verification.sources.length >= 2 && event.verification.score >= 80)) {
+    status = 'VERIFIED';
+    reason = `${event.verification.sources.length} sources + consensus validated`;
+  }
+
+  const config = {
+    VERIFIED: { 
+      icon: '✅', 
+      color: 'text-green-400', 
+      bgColor: 'bg-green-500/10 border-green-500/30',
+      label: 'Verified by protocol'
+    },
+    CHALLENGED: { 
+      icon: '⚠️', 
+      color: 'text-orange-400', 
+      bgColor: 'bg-orange-500/10 border-orange-500/30',
+      label: 'Under dispute'
+    },
+    UNVERIFIED: { 
+      icon: '⏳', 
+      color: 'text-gray-400', 
+      bgColor: 'bg-gray-500/10 border-gray-500/30',
+      label: 'Awaiting verification'
+    },
+  };
+
+  const { icon, bgColor, color, label } = config[status];
+
+  return (
+    <div className="relative group">
+      <span className={`flex items-center gap-1.5 px-2 py-0.5 text-[10px] font-medium rounded-full border ${bgColor} ${color}`}>
+        <span>{icon}</span>
+        <span>{label}</span>
+      </span>
+      <div className="absolute bottom-full right-0 mb-2 px-3 py-2 bg-gray-900 text-xs text-gray-300 rounded-lg border border-white/10 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-20 shadow-lg">
+        {reason}
+      </div>
+    </div>
+  );
+};
+
+// Sprint 1.5: Ghost Action Button
+const GhostActionButton = ({ 
+  icon: Icon,
+  label,
+  tooltip,
+  colorClass = 'text-gray-400'
+}: { 
+  icon: React.ElementType;
+  label: string;
+  tooltip: string;
+  colorClass?: string;
+}) => (
+  <div className="relative group">
+    <button 
+      disabled
+      className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium opacity-50 cursor-not-allowed ${colorClass} hover:bg-white/5 rounded-lg transition-colors`}
+    >
+      <Lock className="w-3 h-3" />
+      {label}
+    </button>
+    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-xs text-gray-300 rounded-lg border border-white/10 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-20 shadow-lg">
+      {tooltip}
+    </div>
+  </div>
+);
+
 const BADGE_CONFIG: Record<string, { color: string; bgColor: string }> = {
   'VERIFIED': { 
     color: 'text-green-400', 
@@ -120,12 +199,14 @@ const SOURCE_ICONS: Record<AgentEventSourceKind, React.ReactNode> = {
   'ONCHAIN': <Link2 className="w-3.5 h-3.5" />,
   'GITHUB': <GitBranch className="w-3.5 h-3.5" />,
   'X': <Twitter className="w-3.5 h-3.5" />,
+  'MEDIA': <Newspaper className="w-3.5 h-3.5" />,
 };
 
 const SOURCE_COLORS: Record<AgentEventSourceKind, string> = {
   'ONCHAIN': 'text-blue-400 bg-blue-500/10 border-blue-500/30',
   'GITHUB': 'text-gray-400 bg-gray-500/10 border-gray-500/30',
   'X': 'text-sky-400 bg-sky-500/10 border-sky-500/30',
+  'MEDIA': 'text-orange-400 bg-orange-500/10 border-orange-500/30',
 };
 
 // ============================================
@@ -241,10 +322,15 @@ export default function AgentEventCard({ event, index = 0 }: AgentEventCardProps
             </div>
           </div>
           
-          {/* Type Badge */}
-          <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border ${typeConfig.bgColor}`}>
-            <span className="text-sm">{typeConfig.icon}</span>
-            <span className={`text-xs font-medium ${typeConfig.color}`}>{typeConfig.label}</span>
+          <div className="flex items-center gap-2">
+            {/* Sprint 1.5: Verification Status Badge */}
+            <VerificationStatusBadge event={event} />
+            
+            {/* Type Badge */}
+            <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border ${typeConfig.bgColor}`}>
+              <span className="text-sm">{typeConfig.icon}</span>
+              <span className={`text-xs font-medium ${typeConfig.color}`}>{typeConfig.label}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -371,7 +457,7 @@ export default function AgentEventCard({ event, index = 0 }: AgentEventCardProps
         )}
       </div>
       
-      {/* Actions Bar */}
+      {/* Actions Bar - Sprint 1.5: Ghost Actions with Lock */}
       <div className="px-5 py-3 border-t border-white/5 bg-white/[0.02] flex items-center justify-between">
         <div className="flex items-center gap-2">
           <button className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-purple-400 hover:text-purple-300 hover:bg-purple-500/10 rounded-lg transition-colors">
@@ -385,12 +471,24 @@ export default function AgentEventCard({ event, index = 0 }: AgentEventCardProps
         </div>
         
         <div className="flex items-center gap-2">
+          {/* Sprint 1.5: Challenge Ghost Action */}
           {event.status !== 'REJECTED' && (
-            <button className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-orange-400 hover:text-orange-300 hover:bg-orange-500/10 rounded-lg transition-colors">
-              <AlertTriangle className="w-3.5 h-3.5" />
-              Challenge
-            </button>
+            <GhostActionButton 
+              icon={AlertTriangle}
+              label="Challenge"
+              tooltip="Requires wallet connection"
+              colorClass="text-orange-400"
+            />
           )}
+          
+          {/* Sprint 1.5: Boost Ghost Action */}
+          <GhostActionButton 
+            icon={Zap}
+            label="Boost"
+            tooltip="Requires wallet + GENESIS"
+            colorClass="text-green-400"
+          />
+          
           <button className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
             <ExternalLink className="w-3.5 h-3.5" />
             Verify Source

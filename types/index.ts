@@ -4,6 +4,9 @@ export type Timeframe = '1h' | '6h' | '24h' | '7d' | '30d';
 export type SortOption = 'latest' | 'trending' | 'highest_impact' | 'most_contested';
 export type Category = 'all' | 'events' | 'agents' | 'crypto' | 'crypto_agents' | 'ai_models' | 'tech_world' | 'openclaw_tech';
 
+// Sprint 1.5: Verification Status for truth rules
+export type VerificationStatus = 'VERIFIED' | 'CHALLENGED' | 'UNVERIFIED';
+
 // Feed tab types for new navigation
 export type FeedTab = 'all' | 'events' | 'agents' | 'crypto' | 'ai' | 'tech';
 
@@ -119,6 +122,10 @@ export interface ProtocolEvent {
   source_type: SourceType;
   evidence: Evidence[];
   signals_attached?: number; // for dedup
+  
+  // Sprint 1.5: Truth rules - Verification Status
+  verificationStatus: VerificationStatus;
+  verificationReason?: string; // ex: "3 sources + 2 validators"
 }
 
 // Alias for backward compatibility

@@ -8,6 +8,7 @@ import FeedSection from '@/components/FeedSection';
 import AgentActivityFeed from '@/components/AgentActivityFeed';
 import CryptoChainFeed from '@/components/CryptoChainFeed';
 import Sidebar from '@/components/Sidebar';
+import BadgeDemo from '@/components/BadgeDemo';
 import { protocolEvents } from '@/lib/data';
 import { agentActivities, cryptoChainEvents } from '@/lib/agentData';
 import toast from 'react-hot-toast';
@@ -164,6 +165,7 @@ export default function HomeClient({ initialFeeds, error }: HomeClientProps) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 dark:from-gray-900 dark:via-black dark:to-gray-900 light:from-gray-100 light:via-white light:to-gray-100">
       <Header activeTab={activeTab} onTabChange={setActiveTab} />
+      <BadgeDemo />
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Tab Title Banner */}

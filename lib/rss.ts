@@ -127,6 +127,15 @@ async function fetchRSSFeed(url: string, sourceName: string, category: string): 
           ],
           tags,
           author,
+          source_type: 'MEDIA',
+          evidence: [{
+            source_type: 'MEDIA',
+            url: link,
+            timestamp: pubDate,
+            media_source: sourceName,
+          }],
+          verificationStatus: 'UNVERIFIED',
+          verificationReason: 'Media source - awaiting cross-source confirmation',
         });
         
         counter++;

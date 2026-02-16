@@ -3,13 +3,16 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ProtocolEvent, SourceType, Evidence } from '@/types';
+import { ProtocolEvent, SourceType, Evidence, VerificationStatus } from '@/types';
 import { 
   formatTimeAgo, 
   getStatusBgColor,
   getStatusIcon,
   getCategoryColor,
   getCategoryLabel,
+  getVerificationStatusColor,
+  getVerificationStatusIcon,
+  getVerificationStatusLabel,
 } from '@/lib/data';
 import { 
   ExternalLink, 
@@ -34,7 +37,8 @@ import {
   FileCode,
   GitCommit,
   Tag,
-  Blocks
+  Blocks,
+  Lock
 } from 'lucide-react';
 
 interface FeedCardProps {
@@ -85,6 +89,46 @@ const SourceTypeBadge = ({ type, signalsAttached }: { type: SourceType; signalsA
           <Link2 className="w-3 h-3" />
           {signalsAttached} signals
         </span>
+      )}
+    </div>
+  );
+};
+
+// Sprint 1.5: Verification Status Badge component
+const VerificationStatusBadge = ({ status, reason }: { status: VerificationStatus; reason?: string }) => {
+  const config = {
+    VERIFIED: { 
+      icon: '✅', 
+      color: 'text-green-400', 
+      bgColor: 'bg-green-500/10 border-green-500/30',
+      label: 'Verified by protocol'
+    },
+    CHALLENGED: { 
+      icon: '⚠️', 
+      color: 'text-orange-400', 
+      bgColor: 'bg-orange-500/10 border-orange-500/30',
+      label: 'Under dispute'
+    },
+    UNVERIFIED: { 
+      icon: '⏳', 
+      color: 'text-gray-400', 
+      bgColor: 'bg-gray-500/10 border-gray-500/30',
+      label: 'Awaiting verification'
+    },
+  };
+
+  const { icon, bgColor, color, label } = config[status];
+
+  return (
+    <div className="relative group">
+      <span className={`flex items-center gap-1.5 px-2 py-0.5 text-xs font-medium rounded-full border ${bgColor} ${color}`}>
+        <span>{icon}</span>
+        <span>{label}</span>
+      </span>
+      {reason && (
+        <div className="absolute bottom-full right-0 mb-2 px-3 py-2 bg-gray-900 text-xs text-gray-300 rounded-lg border border-white/10 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-20 shadow-lg max-w-xs">
+          {reason}
+        </div>
       )}
     </div>
   );
@@ -273,7 +317,33 @@ const EvidenceCard = ({ evidence, index }: { evidence: Evidence; index: number }
   );
 };
 
-// Tooltip component for disabled buttons
+// Sprint 1.5: Ghost Action Button with Lock and Tooltip
+const GhostActionButton = ({ 
+  icon: Icon,
+  label,
+  tooltip,
+  colorClass = 'text-gray-400'
+}: { 
+  icon: React.ElementType;
+  label: string;
+  tooltip: string;
+  colorClass?: string;
+}) => (
+  <div className="relative group">
+    <button 
+      disabled
+      className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium opacity-50 cursor-not-allowed ${colorClass} hover:bg-white/5 rounded-lg transition-colors`}
+    >
+      <Lock className="w-3 h-3" />
+      {label}
+    </button>
+    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-xs text-gray-300 rounded-lg border border-white/10 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-20 shadow-lg">
+      {tooltip}
+    </div>
+  </div>
+);
+
+// Legacy TooltipButton (kept for compatibility)
 const TooltipButton = ({ 
   children, 
   tooltip,
@@ -418,6 +488,12 @@ export default function FeedCard({ item, index = 0 }: FeedCardProps) {
             {/* Source Type Badge */}
             <SourceTypeBadge type={item.source_type} signalsAttached={item.signals_attached} />
             
+            {/* Sprint 1.5: Verification Status Badge */}
+            <VerificationStatusBadge 
+              status={item.verificationStatus} 
+              reason={item.verificationReason} 
+            />
+            
             {/* Status Badge */}
             <StatusBadge status={item.status} />
           </div>
@@ -520,10 +596,10 @@ export default function FeedCard({ item, index = 0 }: FeedCardProps) {
         onToggle={() => setIsEvidenceOpen(!isEvidenceOpen)} 
       />
 
-      {/* Actions Bar */}
+      {/* Actions Bar - Sprint 1.5: Ghost Actions with Lock */}
       <div className="px-5 py-3 border-t border-white/5 bg-white/[0.02] flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          {/* Open Button */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Open Button - Active */}
           <Link
             href={`/event/${item.id}`}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-purple-400 hover:text-purple-300 hover:bg-purple-500/10 rounded-lg transition-colors"
@@ -532,29 +608,42 @@ export default function FeedCard({ item, index = 0 }: FeedCardProps) {
             Open
           </Link>
 
-          {/* Boost Button (Disabled with Tooltip) */}
-          <TooltipButton tooltip="coming online">
-            <span className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-green-400 hover:text-green-300 hover:bg-green-500/10 rounded-lg transition-colors">
-              <ChevronUp className="w-3.5 h-3.5" />
-              Boost
-            </span>
-          </TooltipButton>
+          {/* Sprint 1.5: Challenge Ghost Action */}
+          <GhostActionButton 
+            icon={AlertTriangle}
+            label="Challenge"
+            tooltip="Requires wallet connection"
+            colorClass="text-orange-400"
+          />
 
-          {/* Challenge Button (Disabled with Tooltip) */}
-          <TooltipButton tooltip="coming online">
-            <span className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-orange-400 hover:text-orange-300 hover:bg-orange-500/10 rounded-lg transition-colors">
-              <AlertTriangle className="w-3.5 h-3.5" />
-              Challenge
-            </span>
-          </TooltipButton>
+          {/* Sprint 1.5: Boost Ghost Action */}
+          <GhostActionButton 
+            icon={ChevronUp}
+            label="Boost"
+            tooltip="Requires wallet + GENESIS"
+            colorClass="text-green-400"
+          />
 
-          {/* Discuss Button (Disabled with Tooltip) */}
-          <TooltipButton tooltip="coming online">
-            <span className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-400 hover:text-blue-300 hover:bg-blue-500/10 rounded-lg transition-colors">
-              <MessageSquare className="w-3.5 h-3.5" />
-              Discuss
-            </span>
-          </TooltipButton>
+          {/* Sprint 1.5: Submit Evidence Ghost Action */}
+          <GhostActionButton 
+            icon={Shield}
+            label="Submit Evidence"
+            tooltip="Requires wallet connection"
+            colorClass="text-blue-400"
+          />
+
+          {/* Share Button - Active */}
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              navigator.clipboard.writeText(`${typeof window !== 'undefined' ? window.location.origin : ''}/event/${item.id}`);
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+          >
+            <ExternalLink className="w-3.5 h-3.5" />
+            Share
+          </button>
         </div>
 
         {/* External Link */}

@@ -27,7 +27,7 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
     <header className="sticky top-0 z-50 bg-black/80 backdrop-blur-md border-b border-white/10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          {/* Logo */}
+          {/* Logo - Sprint 1.5: Updated with tagline */}
           <Link href="/" className="flex items-center space-x-3">
             <motion.div 
               whileHover={{ scale: 1.05 }}
@@ -42,7 +42,9 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
                   Testnet
                 </span>
               </div>
-              <p className="text-xs text-gray-400 hidden sm:block">Agent Intelligence Feed</p>
+              <p className="text-xs text-gray-400 hidden sm:block">
+                A public registry of verified events
+              </p>
             </div>
           </Link>
 

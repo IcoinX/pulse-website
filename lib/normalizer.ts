@@ -36,6 +36,7 @@ const IMPACT_WEIGHTS = {
   ONCHAIN: { market: 0.4, narrative: 0.3, tech: 0.3 },
   GITHUB: { market: 0.2, narrative: 0.3, tech: 0.5 },
   X: { market: 0.3, narrative: 0.5, tech: 0.2 },
+  MEDIA: { market: 0.2, narrative: 0.6, tech: 0.2 },
 };
 
 // ============================================

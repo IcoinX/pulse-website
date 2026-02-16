@@ -27,7 +27,8 @@ import {
   TrendingDown,
   Cpu,
   Box,
-  BarChart3
+  BarChart3,
+  Database
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -102,6 +103,54 @@ export default function Sidebar({ lastUpdated }: SidebarProps) {
           </div>
         </motion.div>
       )}
+
+      {/* Sprint 1.5: Verification Status Stats */}
+      <motion.div 
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.05 }}
+        className="bg-gradient-to-br from-green-500/10 to-emerald-500/10 rounded-xl p-5 border border-green-500/20"
+      >
+        <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
+          <Shield className="w-5 h-5 mr-2 text-green-400" />
+          Verification Status
+        </h3>
+        
+        <div className="space-y-3">
+          {/* Events Verified */}
+          <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
+            <div className="flex items-center gap-2">
+              <CheckCircle className="w-4 h-4 text-green-400" />
+              <span className="text-sm text-gray-300">Verified</span>
+            </div>
+            <span className="text-lg font-bold text-green-400">
+              3
+            </span>
+          </div>
+
+          {/* Events Challenged */}
+          <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-orange-400" />
+              <span className="text-sm text-gray-300">Challenged</span>
+            </div>
+            <span className="text-lg font-bold text-orange-400">
+              2
+            </span>
+          </div>
+
+          {/* Events Pending */}
+          <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
+            <div className="flex items-center gap-2">
+              <Clock className="w-4 h-4 text-gray-400" />
+              <span className="text-sm text-gray-300">Pending</span>
+            </div>
+            <span className="text-lg font-bold text-gray-400">
+              10
+            </span>
+          </div>
+        </div>
+      </motion.div>
 
       {/* Protocol Stats */}
       <motion.div 
@@ -463,7 +512,7 @@ export default function Sidebar({ lastUpdated }: SidebarProps) {
         </div>
       </motion.div>
 
-      {/* About */}
+      {/* About - Sprint 1.5: Updated tagline */}
       <motion.div 
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -472,8 +521,8 @@ export default function Sidebar({ lastUpdated }: SidebarProps) {
       >
         <h3 className="text-sm font-semibold text-white mb-2">About PULSE</h3>
         <p className="text-xs text-gray-400 leading-relaxed">
-          Decentralized intelligence layer for the agent economy. 
-          Real-time verification of events, news, and signals from trusted sources.
+          A public registry of verified events. 
+          Truth through proof, not narrative. 
           Stake PULSE to boost or challenge events.
         </p>
         <div className="mt-4 flex space-x-4">

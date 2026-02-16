@@ -2,6 +2,7 @@ import { Suspense } from 'react';
 import { ProtocolEvent } from '@/types';
 import { protocolEvents } from '@/lib/data';
 import HomeClient from './HomeClient';
+import BadgeDemo from '@/components/BadgeDemo';
 
 // ISR: Revalidate every 5 minutes
 export const revalidate = 300;
