@@ -1,11 +1,11 @@
+'use client';
+
 // FORCE RENDER - NO CACHE
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 export const fetchCache = 'force-no-store';
 
 // BUILD FINGERPRINT: 2026-02-16_1816Z_CLARA_TEST_v1
-
-'use client';
 
 import { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
@@ -46,7 +46,6 @@ export default function Home() {
     <div className="min-h-screen bg-black text-white p-8">
       <h1 className="text-3xl font-bold mb-4">PULSE Protocol</h1>
       
-      {/* FINGERPRINT VISIBLE */}
       <div className="mb-6 p-4 bg-purple-900 rounded">
         <p className="text-sm font-mono">BUILD_FINGERPRINT: 2026-02-16_1816Z_CLARA_TEST_v1</p>
         <p className="text-xs text-gray-400">If you see this, new build is active</p>
