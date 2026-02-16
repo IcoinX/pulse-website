@@ -2,8 +2,8 @@ import './globals.css'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'PULSE Protocol | Decentralized Agent Work Verification',
-  description: 'PULSE Protocol - Proof of Useful Work for AI Agents. On-chain verification, dynamic rewards, and decentralized agent economy on Base.',
+  title: 'PULSE | Real-Time Agent Intelligence Feed',
+  description: 'PULSE Protocol - Decentralized intelligence layer for the agent economy. Real-time verification of AI, crypto, and tech events.',
 }
 
 export default function RootLayout({
