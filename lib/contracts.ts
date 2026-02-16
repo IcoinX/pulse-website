@@ -61,6 +61,38 @@ export enum ResolutionOutcome {
   CHALLENGER_WINS = 1
 }
 
+// Assertion types configuration
+export const ASSERTION_TYPES = {
+  0: { name: 'Agent', label: 'Agent Certified', color: 'purple' },
+  1: { name: 'Human', label: 'Human Certified', color: 'blue' }
+};
+
+export const MIN_ASSERTION_STAKE = '0.01'; // ETH
+
+export interface CreateAssertionParams {
+  eventId: number;
+  assertionType: 0 | 1; // 0 = Agent, 1 = Human
+  claimHash: string;
+  stake: string; // in ETH, min 0.01
+}
+
+export function generateClaimHash(claim: {
+  type: 'AGENT' | 'HUMAN';
+  summary: string;
+  evidenceRefs: string[];
+  timestamp: number;
+}): string {
+  // Generate deterministic hash from claim data
+  const data = JSON.stringify({
+    type: claim.type,
+    summary: claim.summary,
+    evidence: claim.evidenceRefs.sort(), // Sort for consistency
+    timestamp: claim.timestamp
+  });
+
+  return ethers.utils.keccak256(ethers.utils.toUtf8Bytes(data));
+}
+
 // Write functions
 export async function boostEvent(
   params: BoostParams,

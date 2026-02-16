@@ -42,6 +42,8 @@ import toast from 'react-hot-toast';
 import { useAccount, useNetwork } from 'wagmi';
 import CanonicalEventView from '@/components/CanonicalEventView';
 import BoostModal from '@/components/modals/BoostModal';
+import { CreateAssertionModal } from '@/components/modals/CreateAssertionModal';
+import { isWhitelisted } from '@/lib/whitelist';
 
 interface EventDetailClientProps {
   feed: ProtocolEvent;
@@ -270,7 +272,8 @@ export default function EventDetailClient({ feed }: EventDetailClientProps) {
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [activeAnnotationTab, setActiveAnnotationTab] = useState<'all' | 'human' | 'agent'>('all');
   const [isBoostModalOpen, setIsBoostModalOpen] = useState(false);
-  const { isConnected } = useAccount();
+  const [isCreateAssertionModalOpen, setIsCreateAssertionModalOpen] = useState(false);
+  const { isConnected, address } = useAccount();
   const { chain } = useNetwork();
   const isWrongChain = isConnected && chain?.id !== 84532;
 
@@ -624,13 +627,16 @@ export default function EventDetailClient({ feed }: EventDetailClientProps) {
                       Boost
                     </button>
                     
-                    {/* Sprint 2.4: Ghost Submit Evidence */}
-                    <GhostActionButton 
-                      icon={Shield}
-                      label="Submit Evidence"
-                      tooltip="Coming in Sprint 2.4"
-                      colorClass="text-blue-400"
-                    />
+                    {/* Sprint 2.4.1: Add Certified Assertion Button */}
+                    {isWhitelisted(address) && (
+                      <button 
+                        className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-purple-400 bg-white/5 hover:bg-purple-500/10 rounded-lg transition-colors"
+                        onClick={() => setIsCreateAssertionModalOpen(true)}
+                      >
+                        <Shield className="w-4 h-4" />
+                        Add Certified Assertion
+                      </button>
+                    )}
                   </>
                 ) : isConnected && isWrongChain ? (
                   <>
@@ -700,6 +706,15 @@ export default function EventDetailClient({ feed }: EventDetailClientProps) {
         onClose={() => setIsBoostModalOpen(false)}
         eventId={parseInt(feed.id) || 0}
         eventTitle={feed.title}
+      />
+
+      {/* Create Assertion Modal */}
+      <CreateAssertionModal
+        eventId={parseInt(feed.id) || 0}
+        eventTitle={feed.title}
+        isOpen={isCreateAssertionModalOpen}
+        onClose={() => setIsCreateAssertionModalOpen(false)}
+        onSuccess={() => window.location.reload()}
       />
 
       {/* Footer Spacer for sticky bar */}

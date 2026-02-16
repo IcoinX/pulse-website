@@ -126,6 +126,15 @@ export interface ProtocolEvent {
   // Sprint 1.5: Truth rules - Verification Status
   verificationStatus: VerificationStatus;
   verificationReason?: string; // ex: "3 sources + 2 validators"
+  
+  // Sprint 2.4.1: Assertion data
+  assertion?: {
+    type: 0 | 1; // 0 = Agent, 1 = Human
+    assertionId: number;
+    asserter: string;
+    stakeAmount: string;
+    status: number;
+  };
 }
 
 // Alias for backward compatibility

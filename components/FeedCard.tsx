@@ -43,7 +43,9 @@ import {
 } from 'lucide-react';
 import BoostModal from './modals/BoostModal';
 import AssertionModal from './modals/AssertionModal';
+import { CreateAssertionModal } from './modals/CreateAssertionModal';
 import { isWhitelisted } from '@/lib/whitelist';
+import { ASSERTION_TYPES } from '@/lib/contracts';
 
 interface FeedCardProps {
   item: ProtocolEvent;
@@ -540,6 +542,14 @@ export default function FeedCard({ item, index = 0 }: FeedCardProps) {
               reason={item.verificationReason} 
             />
             
+            {/* Sprint 2.4.1: Assertion Badge */}
+            {item.assertion !== undefined && (
+              <span className={`flex items-center gap-1.5 px-2 py-0.5 text-xs font-medium rounded-full border bg-${ASSERTION_TYPES[item.assertion.type].color}-500/10 border-${ASSERTION_TYPES[item.assertion.type].color}-500/30 text-${ASSERTION_TYPES[item.assertion.type].color}-400`}>
+                <Shield className="w-3 h-3" />
+                {ASSERTION_TYPES[item.assertion.type].label}
+              </span>
+            )}
+            
             {/* Status Badge */}
             <StatusBadge status={item.status} />
           </div>
@@ -683,13 +693,23 @@ export default function FeedCard({ item, index = 0 }: FeedCardProps) {
                 />
               )}
 
-              {/* Add Assertion Button - Disabled in dry-run mode (Sprint 2.4) */}
-              <GhostActionButton 
-                icon={Shield}
-                label="Add Assertion"
-                tooltip="Coming in Sprint 2.4"
-                colorClass="text-blue-400"
-              />
+              {/* Sprint 2.4.1: Add Certified Assertion Button */}
+              {whitelisted ? (
+                <ActionButton 
+                  icon={Shield}
+                  label="Add Assertion"
+                  onClick={handleAssertion}
+                  colorClass="text-purple-400"
+                  bgClass="hover:bg-purple-500/10"
+                />
+              ) : (
+                <GhostActionButton 
+                  icon={Shield}
+                  label="Add Assertion"
+                  tooltip="Certified assertions in limited test"
+                  colorClass="text-purple-400"
+                />
+              )}
             </>
           ) : isConnected && isWrongChain ? (
             <>
@@ -776,11 +796,12 @@ export default function FeedCard({ item, index = 0 }: FeedCardProps) {
         eventTitle={item.title}
       />
 
-      <AssertionModal
-        isOpen={isAssertionModalOpen}
-        onClose={() => setIsAssertionModalOpen(false)}
+      <CreateAssertionModal
         eventId={parseInt(item.id) || 0}
         eventTitle={item.title}
+        isOpen={isAssertionModalOpen}
+        onClose={() => setIsAssertionModalOpen(false)}
+        onSuccess={() => window.location.reload()}
       />
     </motion.div>
   );
