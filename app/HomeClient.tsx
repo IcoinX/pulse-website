@@ -72,14 +72,14 @@ function tabToCategory(tab: FeedTab): Category {
 
 export default function HomeClient({ initialFeeds, error }: HomeClientProps) {
   const [activeTab, setActiveTab] = useState<FeedTab>('all');
-  const [feeds, setFeeds] = useState<ProtocolEvent[]>(initialFeeds.length > 0 ? initialFeeds : protocolEvents);
+  const [feeds, setFeeds] = useState<ProtocolEvent[]>(initialFeeds);
   const [isLoading, setIsLoading] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
 
   // Show error toast if initial fetch failed
   useEffect(() => {
     if (error) {
-      toast.error('Failed to load feeds. Using fallback data.');
+      toast.error('Failed to load feeds from Supabase: ' + error);
     }
   }, [error]);
 

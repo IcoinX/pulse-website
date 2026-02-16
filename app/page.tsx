@@ -8,13 +8,10 @@ export const revalidate = 300;
 
 async function getEventsFromSupabase(): Promise<{ feeds: ProtocolEvent[]; error: string | null }> {
   try {
-    // Fetch canonical events from Supabase
+    // Fetch from events table (not canonical_events)
     const { data: events, error: eventsError } = await supabase
-      .from('canonical_events')
-      .select(`
-        *,
-        assertions(*)
-      `)
+      .from('events')
+      .select(`*`)
       .order('created_at', { ascending: false })
       .limit(50);
 
@@ -23,24 +20,22 @@ async function getEventsFromSupabase(): Promise<{ feeds: ProtocolEvent[]; error:
       return { feeds: [], error: eventsError.message };
     }
 
+    console.log('Supabase events fetched:', events?.length || 0, events);
+
     // Transform to ProtocolEvent format
     const feeds: ProtocolEvent[] = (events || []).map((event: any) => ({
       id: event.event_id,
       title: event.title || `Event #${event.event_id}`,
       description: event.description || '',
       timestamp: event.created_at,
-      source: event.source || 'ONCHAIN',
+      source: event.source_type || 'ONCHAIN',
       sourceUrl: event.source_url || '',
-      chain: event.chain || 'base-sepolia',
-      eventType: event.event_type || 'GENERIC',
+      chain: 'base-sepolia',
+      eventType: event.source_type || 'GENERIC',
       canonicalHash: event.canonical_hash,
-      status: event.assertions?.some((a: any) => a.status === 'VERIFIED') 
-        ? 'VERIFIED' 
-        : event.assertions?.some((a: any) => a.status === 'CHALLENGED')
-        ? 'CHALLENGED'
-        : 'UNVERIFIED',
-      assertions: event.assertions || [],
-      assertion: event.assertions?.[0] || null,
+      status: event.status || 'UNVERIFIED',
+      assertions: [],
+      assertion: null,
     }));
 
     return { feeds, error: null };
