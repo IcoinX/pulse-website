@@ -1,62 +1,86 @@
-import { Suspense } from 'react';
-import { ProtocolEvent } from '@/types';
+'use client';
+
+import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import HomeClient from './HomeClient';
 
-// Force dynamic rendering (no caching)
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+export default function SimpleHome() {
+  const [events, setEvents] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-async function getEventsFromSupabase(): Promise<ProtocolEvent[]> {
-  try {
-    // Simple fetch from events table
-    const { data: events, error } = await supabase
-      .from('events')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(50);
+  useEffect(() => {
+    async function fetchEvents() {
+      try {
+        const { data, error } = await supabase
+          .from('events')
+          .select('*')
+          .order('created_at', { ascending: false });
 
-    if (error) {
-      console.error('Supabase error:', error);
-      return [];
+        if (error) {
+          setError(error.message);
+        } else {
+          setEvents(data || []);
+        }
+      } catch (e: any) {
+        setError(e.message);
+      } finally {
+        setLoading(false);
+      }
     }
 
-    console.log('Fetched events:', events);
+    fetchEvents();
+  }, []);
 
-    // Simple transform
-    return (events || []).map((event: any) => ({
-      id: String(event.event_id),
-      title: event.title || `Event #${event.event_id}`,
-      description: '',
-      summary: event.title || `Event #${event.event_id}`,
-      content: event.title || `Event #${event.event_id}`,
-      timestamp: event.created_at,
-      source: event.source_type || 'ONCHAIN',
-      sourceUrl: '',
-      category: 'crypto_agents',
-      status: (event.status?.toLowerCase() || 'unverified') as any,
-      chain: 'base-sepolia',
-      eventType: event.source_type || 'GENERIC',
-      canonicalHash: event.canonical_hash,
-      tags: [event.source_type?.toLowerCase() || 'onchain'],
-      proofTags: [],
-      evidence: [],
-      timeline: [],
-      assertionCount: 0,
-      challengeCount: 0,
-    }));
-  } catch (err) {
-    console.error('Error:', err);
-    return [];
-  }
-}
-
-export default async function Home() {
-  const feeds = await getEventsFromSupabase();
+  if (loading) return <div className="p-8 text-white">Loading...</div>;
+  if (error) return <div className="p-8 text-red-500">Error: {error}</div>;
 
   return (
-    <Suspense fallback={<div>Loading...</div>}>
-      <HomeClient initialFeeds={feeds} />
-    </Suspense>
+    <div className="min-h-screen bg-black text-white p-8">
+      <h1 className="text-3xl font-bold mb-8">PULSE Protocol</h1>
+      
+      <div className="mb-6">
+        <a 
+          href="https://pulseprotocol.co/dashboard" 
+          className="inline-block px-6 py-3 bg-purple-600 rounded-lg hover:bg-purple-700"
+        >
+          Connect Wallet →
+        </a>
+      </div>
+
+      <h2 className="text-xl font-semibold mb-4">Events ({events.length})</h2>
+      
+      {events.length === 0 ? (
+        <p className="text-gray-500">No events found in database.</p>
+      ) : (
+        <div className="space-y-4">
+          {events.map((event) => (
+            <div key={event.event_id} className="bg-gray-900 p-4 rounded-lg border border-gray-800">
+              <div className="flex items-center gap-3 mb-2">
+                <span className="text-2xl">
+                  {event.source_type === 'AGENT' ? '🤖' : 
+                   event.source_type === 'ONCHAIN' ? '⛓️' : '📰'}
+                </span>
+                <h3 className="text-lg font-medium">{event.title}</h3>
+              </div>
+              <div className="flex gap-3 text-sm">
+                <span className="px-2 py-1 bg-gray-800 rounded">
+                  #{event.event_id}
+                </span>
+                <span className="px-2 py-1 bg-gray-800 rounded">
+                  {event.source_type}
+                </span>
+                <span className={`px-2 py-1 rounded ${
+                  event.status === 'VERIFIED' ? 'bg-green-900 text-green-400' :
+                  event.status === 'CHALLENGED' ? 'bg-red-900 text-red-400' :
+                  'bg-yellow-900 text-yellow-400'
+                }`}>
+                  {event.status}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
