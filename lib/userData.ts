@@ -37,7 +37,7 @@ export async function getUserAssertions(wallet: string): Promise<UserAssertion[]
     type: row.assertion_type === 0 ? 'Agent' : 'Human' as const,
     stake: row.stake_amount,
     status: mapAssertionStatus(row.status),
-    outcome: (row.outcome === null ? 'ongoing' : row.outcome === 0 ? 'win' : 'loss') as 'win' | 'loss' | 'ongoing',
+    outcome: (row.outcome === null ? 'pending' : row.outcome === 0 ? 'win' : 'loss') as 'win' | 'loss' | 'pending',
     createdAt: row.created_at,
     resolvedAt: row.resolved_at
   }));
