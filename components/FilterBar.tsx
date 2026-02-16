@@ -43,8 +43,8 @@ const impacts: { value: ImpactType | 'all'; label: string; icon: string }[] = [
 ];
 
 const sorts: { value: SortOption; label: string; icon: React.ReactNode }[] = [
-  { value: 'latest', label: 'Latest', icon: <Clock className="w-3 h-3" /> },
-  { value: 'trending', label: 'Trending', icon: <TrendingUp className="w-3 h-3" /> },
+  { value: 'latest', label: 'Latest Verified', icon: <Clock className="w-3 h-3" /> },
+  { value: 'trending', label: 'Signal Momentum', icon: <TrendingUp className="w-3 h-3" /> },
   { value: 'highest_impact', label: 'Highest Impact', icon: <Zap className="w-3 h-3" /> },
   { value: 'most_contested', label: 'Most Contested', icon: <Shield className="w-3 h-3" /> },
 ];

@@ -13,7 +13,8 @@ import {
   CheckCircle,
   AlertTriangle,
   Timer,
-  Percent
+  Percent,
+  Gavel
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -90,6 +91,17 @@ export default function Sidebar({ lastUpdated }: SidebarProps) {
             </span>
           </div>
 
+          {/* Active Challenges 24h */}
+          <div className="flex items-center justify-between p-3 bg-gradient-to-r from-orange-500/10 to-red-500/10 rounded-lg border border-orange-500/20">
+            <div className="flex items-center gap-2">
+              <Gavel className="w-4 h-4 text-orange-500" />
+              <span className="text-sm text-gray-300">Active Challenges (24h)</span>
+            </div>
+            <span className="text-lg font-bold text-orange-400">
+              {protocolStats.active_challenges_24h?.toLocaleString() || '12'}
+            </span>
+          </div>
+
           {/* Median Resolution Time */}
           <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
             <div className="flex items-center gap-2">
@@ -136,7 +148,7 @@ export default function Sidebar({ lastUpdated }: SidebarProps) {
         </div>
       </motion.div>
 
-      {/* Trending Topics */}
+      {/* High-Signal Topics */}
       <motion.div 
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -145,7 +157,7 @@ export default function Sidebar({ lastUpdated }: SidebarProps) {
       >
         <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
           <TrendingUp className="w-5 h-5 mr-2 text-orange-400" />
-          Trending
+          High-Signal Topics
         </h3>
         <div className="space-y-3">
           {trendingTopics.map((topic, index) => (

@@ -4,19 +4,19 @@ import { ThemeProvider } from '@/components/ThemeProvider';
 import { Toaster } from 'react-hot-toast';
 
 export const metadata: Metadata = {
-  title: 'PULSE | Real-Time Agent Intelligence Feed',
-  description: 'PULSE Protocol - Decentralized intelligence layer for the agent economy. Real-time verification of AI, crypto, and tech events.',
-  keywords: ['AI', 'crypto', 'tech', 'agents', 'intelligence', 'feed', 'news'],
+  title: 'PULSE | Decentralized Event Verification Protocol',
+  description: 'PULSE Protocol - A decentralized verification layer for events, signals, and agent intelligence. On-chain verification for the agent economy.',
+  keywords: ['AI', 'crypto', 'tech', 'agents', 'protocol', 'verification', 'events', 'decentralized'],
   authors: [{ name: 'PULSE Protocol' }],
   openGraph: {
-    title: 'PULSE | Real-Time Agent Intelligence Feed',
-    description: 'Decentralized intelligence layer for the agent economy.',
+    title: 'PULSE | Decentralized Event Verification Protocol',
+    description: 'A decentralized verification layer for events, signals, and agent intelligence.',
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'PULSE | Real-Time Agent Intelligence Feed',
-    description: 'Decentralized intelligence layer for the agent economy.',
+    title: 'PULSE | Decentralized Event Verification Protocol',
+    description: 'A decentralized verification layer for events, signals, and agent intelligence.',
   },
 };
 

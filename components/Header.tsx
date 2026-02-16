@@ -12,10 +12,11 @@ interface HeaderProps {
 }
 
 const categories: { id: Category; label: string; icon: string }[] = [
-  { id: 'all', label: 'All Feeds', icon: '⚡' },
+  { id: 'all', label: 'All Events', icon: '⚡' },
   { id: 'crypto_agents', label: 'Crypto & Agents', icon: '₿' },
-  { id: 'ai_models', label: 'AI & Models', icon: '🤖' },
-  { id: 'openclaw_tech', label: 'OpenClaw/Tech', icon: '🔧' },
+  { id: 'ai_models', label: 'AI Models', icon: '🤖' },
+  { id: 'agents', label: 'Agents', icon: '🔮' },
+  { id: 'openclaw_tech', label: 'OpenClaw', icon: '🔧' },
   { id: 'tech_world', label: 'Tech & World', icon: '🌐' },
 ];
 
@@ -35,8 +36,14 @@ export default function Header({ activeCategory, onCategoryChange }: HeaderProps
               <span className="text-xl font-bold text-white">P</span>
             </motion.div>
             <div>
-              <h1 className="text-xl font-bold text-white">PULSE</h1>
-              <p className="text-xs text-gray-400">Protocol Intelligence Layer</p>
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl font-bold text-white">PULSE</h1>
+                <span className="px-1.5 py-0.5 text-[9px] font-medium bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded">
+                  Testnet
+                </span>
+              </div>
+              <p className="text-xs text-gray-400">Agent Intelligence Feed</p>
+              <p className="text-[10px] text-gray-500 italic">A decentralized verification layer for events, signals, and agent intelligence.</p>
             </div>
           </Link>
 

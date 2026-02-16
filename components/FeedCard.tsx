@@ -64,11 +64,28 @@ const StatusBadge = ({ status }: { status: ProtocolEvent['status'] }) => {
     rejected: <XCircle className="w-3 h-3" />,
   };
 
+  const tooltips = {
+    pending: 'Awaiting validator verification',
+    challenged: '⚠️ This event is under dispute. Outcome pending validator resolution.',
+    verified: 'Verified by consensus validators',
+    rejected: 'Failed verification - source not credible',
+  };
+
+  const challengedStyles = status === 'challenged' 
+    ? 'bg-orange-500/30 border-orange-500/50 text-orange-300 animate-pulse' 
+    : '';
+
   return (
-    <span className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full border ${getStatusBgColor(status)}`}>
-      {icons[status]}
-      <span className="uppercase tracking-wider">{status}</span>
-    </span>
+    <div className="relative group">
+      <span className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full border ${getStatusBgColor(status)} ${challengedStyles}`}>
+        {status === 'challenged' && <span className="text-orange-400">⚠️</span>}
+        {icons[status]}
+        <span className="uppercase tracking-wider">{status}</span>
+      </span>
+      <div className="absolute bottom-full right-0 mb-2 px-3 py-2 bg-gray-900 text-xs text-gray-300 rounded-lg border border-white/10 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-20 shadow-lg max-w-xs">
+        {tooltips[status]}
+      </div>
+    </div>
   );
 };
 
@@ -87,12 +104,23 @@ const VerificationScore = ({ score }: { score: number }) => {
   );
 };
 
-// Impact score bars
+// Get dominant impact
+const getDominantImpact = (impact: ProtocolEvent['impact']) => {
+  const impacts = [
+    { type: 'market', value: impact.market, label: 'Market', icon: TrendingUp, color: 'text-red-400', bgColor: 'bg-red-500/20' },
+    { type: 'narrative', value: impact.narrative, label: 'Narrative', icon: Users, color: 'text-blue-400', bgColor: 'bg-blue-500/20' },
+    { type: 'tech', value: impact.tech, label: 'Tech', icon: Zap, color: 'text-purple-400', bgColor: 'bg-purple-500/20' },
+  ];
+  return impacts.reduce((max, current) => current.value > max.value ? current : max);
+};
+
+// Impact score bars with dominant impact highlighted
 const ImpactBars = ({ impact }: { impact: ProtocolEvent['impact'] }) => {
   const maxImpact = Math.max(impact.market, impact.narrative, impact.tech);
+  const dominant = getDominantImpact(impact);
   
   return (
-    <div className="flex items-center gap-2" title="Impact Scores">
+    <div className="flex items-center gap-2" title={`Impact: ${dominant.label} (${maxImpact})`}>
       <div className="flex gap-0.5">
         <div 
           className="w-1 h-3 rounded-full bg-red-500/60"
@@ -116,7 +144,7 @@ export default function FeedCard({ item, index = 0 }: FeedCardProps) {
   const totalImpact = Math.round((item.impact.market + item.impact.narrative + item.impact.tech) / 3);
 
   return (
-    <motion.article
+    <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay: index * 0.05 }}
@@ -161,6 +189,22 @@ export default function FeedCard({ item, index = 0 }: FeedCardProps) {
 
           {/* Protocol Strip */}
           <div className="flex flex-wrap items-center gap-4 py-3 px-4 bg-black/20 rounded-lg border border-white/5 mb-4">
+            {/* Dominant Impact - Highlighted */}
+            {(() => {
+              const dominant = getDominantImpact(item.impact);
+              const Icon = dominant.icon;
+              return (
+                <div className={`flex items-center gap-1.5 px-2 py-1 rounded-md ${dominant.bgColor}`} title={`Dominant Impact: ${dominant.label}`}>
+                  <Icon className={`w-3.5 h-3.5 ${dominant.color}`} />
+                  <span className={`text-xs font-bold ${dominant.color}`}>
+                    {dominant.label} ▲
+                  </span>
+                </div>
+              );
+            })()}
+            
+            <span className="text-gray-700">|</span>
+            
             {/* Verification Score */}
             <VerificationScore score={item.verification_score} />
             
@@ -174,7 +218,7 @@ export default function FeedCard({ item, index = 0 }: FeedCardProps) {
             
             <span className="text-gray-700">|</span>
             
-            {/* Impact */}
+            {/* All Impact Bars */}
             <ImpactBars impact={item.impact} />
             
             <span className="text-gray-700">|</span>
@@ -270,6 +314,6 @@ export default function FeedCard({ item, index = 0 }: FeedCardProps) {
           <span className="hidden sm:inline">Source</span>
         </a>
       </div>
-    </motion.article>
+    </motion.div>
   );
 }

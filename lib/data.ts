@@ -471,6 +471,7 @@ export const protocolStats: ProtocolStats = {
   verified_24h: 2847,
   pending: 156,
   challenged: 43,
+  active_challenges_24h: 12,
   median_resolution_time: 3.2,
   burn_24h: 284750,
   emission_24h: 42500,
