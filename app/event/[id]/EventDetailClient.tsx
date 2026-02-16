@@ -39,7 +39,9 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import toast from 'react-hot-toast';
+import { useAccount, useNetwork } from 'wagmi';
 import CanonicalEventView from '@/components/CanonicalEventView';
+import BoostModal from '@/components/modals/BoostModal';
 
 interface EventDetailClientProps {
   feed: ProtocolEvent;
@@ -267,6 +269,10 @@ const AnnotationItem = ({ annotation }: { annotation: Annotation }) => {
 export default function EventDetailClient({ feed }: EventDetailClientProps) {
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [activeAnnotationTab, setActiveAnnotationTab] = useState<'all' | 'human' | 'agent'>('all');
+  const [isBoostModalOpen, setIsBoostModalOpen] = useState(false);
+  const { isConnected } = useAccount();
+  const { chain } = useNetwork();
+  const isWrongChain = isConnected && chain?.id !== 84532;
 
   const handleShare = async () => {
     try {
@@ -591,36 +597,88 @@ export default function EventDetailClient({ feed }: EventDetailClientProps) {
         </motion.div>
       </main>
 
-      {/* Sticky Actions Bar - Sprint 1.5: Ghost Actions with Lock */}
+      {/* Sticky Actions Bar - Sprint 2.3: Active Boost Button */}
       <div className="fixed bottom-0 left-0 right-0 bg-black/90 backdrop-blur-md border-t border-white/10 z-40">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <span className="text-sm text-gray-400 hidden sm:inline">Event Actions:</span>
               <div className="flex items-center gap-2">
-                {/* Sprint 1.5: Challenge Ghost Action */}
-                <GhostActionButton 
-                  icon={AlertTriangle}
-                  label="Challenge"
-                  tooltip="Requires wallet connection"
-                  colorClass="text-orange-400"
-                />
-                
-                {/* Sprint 1.5: Boost Ghost Action */}
-                <GhostActionButton 
-                  icon={ChevronUp}
-                  label="Boost"
-                  tooltip="Requires wallet + GENESIS"
-                  colorClass="text-green-400"
-                />
-                
-                {/* Sprint 1.5: Submit Evidence Ghost Action */}
-                <GhostActionButton 
-                  icon={Shield}
-                  label="Submit Evidence"
-                  tooltip="Requires wallet connection"
-                  colorClass="text-blue-400"
-                />
+                {isConnected && !isWrongChain ? (
+                  <>
+                    {/* Sprint 2.3: Active Challenge Button */}
+                    <button 
+                      className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-orange-400 bg-white/5 hover:bg-orange-500/10 rounded-lg transition-colors"
+                      onClick={() => toast('Challenge feature coming in Sprint 2.5')}
+                    >
+                      <AlertTriangle className="w-4 h-4" />
+                      Challenge
+                    </button>
+                    
+                    {/* Sprint 2.3: Active Boost Button */}
+                    <button 
+                      className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-green-400 bg-white/5 hover:bg-green-500/10 rounded-lg transition-colors"
+                      onClick={() => setIsBoostModalOpen(true)}
+                    >
+                      <ChevronUp className="w-4 h-4" />
+                      Boost
+                    </button>
+                    
+                    {/* Sprint 2.4: Ghost Submit Evidence */}
+                    <GhostActionButton 
+                      icon={Shield}
+                      label="Submit Evidence"
+                      tooltip="Coming in Sprint 2.4"
+                      colorClass="text-blue-400"
+                    />
+                  </>
+                ) : isConnected && isWrongChain ? (
+                  <>
+                    {/* Wrong Chain State */}
+                    <GhostActionButton 
+                      icon={AlertTriangle}
+                      label="Challenge"
+                      tooltip="Switch to Base Sepolia"
+                      colorClass="text-orange-400"
+                    />
+                    <GhostActionButton 
+                      icon={ChevronUp}
+                      label="Boost"
+                      tooltip="Switch to Base Sepolia"
+                      colorClass="text-green-400"
+                    />
+                    <GhostActionButton 
+                      icon={Shield}
+                      label="Submit Evidence"
+                      tooltip="Switch to Base Sepolia"
+                      colorClass="text-blue-400"
+                    />
+                  </>
+                ) : (
+                  <>
+                    {/* Sprint 1.5: Ghost Actions */}
+                    <GhostActionButton 
+                      icon={AlertTriangle}
+                      label="Challenge"
+                      tooltip="Requires wallet connection"
+                      colorClass="text-orange-400"
+                    />
+                    
+                    <GhostActionButton 
+                      icon={ChevronUp}
+                      label="Boost"
+                      tooltip="Requires wallet connection"
+                      colorClass="text-green-400"
+                    />
+                    
+                    <GhostActionButton 
+                      icon={Shield}
+                      label="Submit Evidence"
+                      tooltip="Requires wallet connection"
+                      colorClass="text-blue-400"
+                    />
+                  </>
+                )}
               </div>
             </div>
             <a
@@ -635,6 +693,14 @@ export default function EventDetailClient({ feed }: EventDetailClientProps) {
           </div>
         </div>
       </div>
+
+      {/* Boost Modal */}
+      <BoostModal
+        isOpen={isBoostModalOpen}
+        onClose={() => setIsBoostModalOpen(false)}
+        eventId={parseInt(feed.id) || 0}
+        eventTitle={feed.title}
+      />
 
       {/* Footer Spacer for sticky bar */}
       <div className="h-20" />

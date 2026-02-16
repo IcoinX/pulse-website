@@ -10,11 +10,28 @@ export const REGISTRY_ABI = [
 ];
 
 export const BOOSTS_ABI = [
-  "function boost(uint256 eventId, uint8 tier) payable",
+  // Read
   "function tierPrices(uint8 tier) view returns (uint256)",
   "function getBoostStatus(uint256 eventId) view returns (bool isBoosted, uint256 endTime, uint8 tier, address booster)",
+  "function eventBoosts(uint256 eventId, uint256 index) view returns (address booster, uint256 amount, uint256 startTime, uint256 endTime, uint8 tier, bool active)",
+  // Write
+  "function boost(uint256 eventId, uint8 tier) payable",
+  // Events
   "event Boosted(uint256 indexed eventId, address indexed booster, uint256 amount, uint256 startTime, uint256 endTime, uint8 tier)"
 ];
+
+// Boost tiers configuration
+export const BOOST_TIERS = {
+  0: { name: '24h', duration: 24 * 60 * 60, price: '0.001' },
+  1: { name: '72h', duration: 3 * 24 * 60 * 60, price: '0.002' },
+  2: { name: '7d', duration: 7 * 24 * 60 * 60, price: '0.005' }
+};
+
+export interface BoostParams {
+  eventId: number;
+  tier: 0 | 1 | 2;
+  value: string; // in ETH
+}
 
 export const ASSERTIONS_ABI = [
   "function createAssertion(uint256 eventId, uint8 assertionType, bytes32 claimHash) payable returns (uint256 assertionId)",
@@ -46,6 +63,23 @@ export enum ResolutionOutcome {
 
 // Write functions
 export async function boostEvent(
+  params: BoostParams,
+  signer: ethers.Signer
+): Promise<ethers.ContractTransaction> {
+  const contractAddress = CONTRACTS[84532]?.boosts;
+  if (!contractAddress) {
+    throw new Error('No boosts contract for Base Sepolia');
+  }
+  
+  const contract = new ethers.Contract(contractAddress, BOOSTS_ABI, signer);
+  const valueWei = ethers.utils.parseEther(params.value);
+  
+  const tx = await contract.boost(params.eventId, params.tier, { value: valueWei });
+  return tx;
+}
+
+// Legacy boost function (keeping for backwards compatibility)
+export async function boostEventLegacy(
   eventId: number, 
   tier: number, 
   value: string, 

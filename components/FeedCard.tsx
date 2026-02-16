@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useAccount } from 'wagmi';
+import { useAccount, useNetwork } from 'wagmi';
 import { ProtocolEvent, SourceType, Evidence, VerificationStatus } from '@/types';
 import { 
   formatTimeAgo, 
@@ -484,6 +484,8 @@ export default function FeedCard({ item, index = 0 }: FeedCardProps) {
   const [isBoostModalOpen, setIsBoostModalOpen] = useState(false);
   const [isAssertionModalOpen, setIsAssertionModalOpen] = useState(false);
   const { isConnected } = useAccount();
+  const { chain } = useNetwork();
+  const isWrongChain = isConnected && chain?.id !== 84532;
   const totalImpact = Math.round((item.impact.market + item.impact.narrative + item.impact.tech) / 3);
 
   const handleBoost = (e: React.MouseEvent) => {
@@ -650,7 +652,7 @@ export default function FeedCard({ item, index = 0 }: FeedCardProps) {
             Open
           </Link>
 
-          {isConnected ? (
+          {isConnected && !isWrongChain ? (
             <>
               {/* Challenge Button - Active when connected */}
               <ActionButton 
@@ -661,12 +663,13 @@ export default function FeedCard({ item, index = 0 }: FeedCardProps) {
                 bgClass="hover:bg-orange-500/10"
               />
 
-              {/* Boost Button - Disabled in dry-run mode (Sprint 2.3) */}
-              <GhostActionButton 
+              {/* Boost Button - Active in Sprint 2.3 */}
+              <ActionButton 
                 icon={ChevronUp}
                 label="Boost"
-                tooltip="Coming in Sprint 2.3"
+                onClick={handleBoost}
                 colorClass="text-green-400"
+                bgClass="hover:bg-green-500/10"
               />
 
               {/* Add Assertion Button - Disabled in dry-run mode (Sprint 2.4) */}
@@ -674,6 +677,30 @@ export default function FeedCard({ item, index = 0 }: FeedCardProps) {
                 icon={Shield}
                 label="Add Assertion"
                 tooltip="Coming in Sprint 2.4"
+                colorClass="text-blue-400"
+              />
+            </>
+          ) : isConnected && isWrongChain ? (
+            <>
+              {/* Wrong Chain State */}
+              <GhostActionButton 
+                icon={AlertTriangle}
+                label="Challenge"
+                tooltip="Switch to Base Sepolia"
+                colorClass="text-orange-400"
+              />
+
+              <GhostActionButton 
+                icon={ChevronUp}
+                label="Boost"
+                tooltip="Switch to Base Sepolia"
+                colorClass="text-green-400"
+              />
+
+              <GhostActionButton 
+                icon={Shield}
+                label="Add Assertion"
+                tooltip="Switch to Base Sepolia"
                 colorClass="text-blue-400"
               />
             </>
