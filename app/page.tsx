@@ -1,27 +1,43 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@supabase/supabase-js';
+
+// Debug: show what Supabase URL we're using
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://plojsqsjykzqwdaolfpi.supabase.co';
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable_r61eP5kLy0S15KiUXr4x0g_Fh0368BQ';
+
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 export default function SimpleHome() {
   const [events, setEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [debug, setDebug] = useState<string>('');
 
   useEffect(() => {
+    console.log('Supabase URL:', supabaseUrl);
+    setDebug(`URL: ${supabaseUrl}`);
+    
     async function fetchEvents() {
       try {
+        console.log('Fetching events...');
         const { data, error } = await supabase
           .from('events')
           .select('*')
           .order('created_at', { ascending: false });
 
+        console.log('Data:', data);
+        console.log('Error:', error);
+
         if (error) {
-          setError(error.message);
+          setError(JSON.stringify(error));
         } else {
           setEvents(data || []);
+          setDebug(prev => `${prev} | Events: ${data?.length || 0}`);
         }
       } catch (e: any) {
+        console.error('Exception:', e);
         setError(e.message);
       } finally {
         setLoading(false);
@@ -31,12 +47,13 @@ export default function SimpleHome() {
     fetchEvents();
   }, []);
 
-  if (loading) return <div className="p-8 text-white">Loading...</div>;
-  if (error) return <div className="p-8 text-red-500">Error: {error}</div>;
+  if (loading) return <div className="p-8 text-white">Loading...<br/><span className="text-xs text-gray-500">{debug}</span></div>;
+  if (error) return <div className="p-8 text-red-500">Error: {error}<br/><span className="text-xs text-gray-500">{debug}</span></div>;
 
   return (
     <div className="min-h-screen bg-black text-white p-8">
-      <h1 className="text-3xl font-bold mb-8">PULSE Protocol</h1>
+      <h1 className="text-3xl font-bold mb-2">PULSE Protocol</h1>
+      <p className="text-xs text-gray-500 mb-8">{debug}</p>
       
       <div className="mb-6">
         <a 
