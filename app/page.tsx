@@ -3,61 +3,60 @@ import { ProtocolEvent } from '@/types';
 import { supabase } from '@/lib/supabase';
 import HomeClient from './HomeClient';
 
-// ISR: Revalidate every 5 minutes
-export const revalidate = 300;
+// Force dynamic rendering (no caching)
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
-async function getEventsFromSupabase(): Promise<{ feeds: ProtocolEvent[]; error: string | null }> {
+async function getEventsFromSupabase(): Promise<ProtocolEvent[]> {
   try {
-    // Fetch from events table (not canonical_events)
-    const { data: events, error: eventsError } = await supabase
+    // Simple fetch from events table
+    const { data: events, error } = await supabase
       .from('events')
-      .select(`*`)
+      .select('*')
       .order('created_at', { ascending: false })
       .limit(50);
 
-    if (eventsError) {
-      console.error('Supabase error:', eventsError);
-      return { feeds: [], error: eventsError.message };
+    if (error) {
+      console.error('Supabase error:', error);
+      return [];
     }
 
-    console.log('Supabase events fetched:', events?.length || 0, events);
+    console.log('Fetched events:', events);
 
-    // Transform to ProtocolEvent format
-    const feeds: ProtocolEvent[] = (events || []).map((event: any) => ({
-      id: event.event_id,
+    // Simple transform
+    return (events || []).map((event: any) => ({
+      id: String(event.event_id),
       title: event.title || `Event #${event.event_id}`,
-      description: event.description || '',
+      description: '',
+      summary: event.title || `Event #${event.event_id}`,
+      content: event.title || `Event #${event.event_id}`,
       timestamp: event.created_at,
       source: event.source_type || 'ONCHAIN',
-      sourceUrl: event.source_url || '',
+      sourceUrl: '',
+      category: 'crypto_agents',
+      status: (event.status?.toLowerCase() || 'unverified') as any,
       chain: 'base-sepolia',
       eventType: event.source_type || 'GENERIC',
       canonicalHash: event.canonical_hash,
-      status: event.status || 'UNVERIFIED',
-      assertions: [],
-      assertion: null,
+      tags: [event.source_type?.toLowerCase() || 'onchain'],
+      proofTags: [],
+      evidence: [],
+      timeline: [],
+      assertionCount: 0,
+      challengeCount: 0,
     }));
-
-    return { feeds, error: null };
-  } catch (err: any) {
-    console.error('Error fetching events:', err);
-    return { feeds: [], error: err.message };
+  } catch (err) {
+    console.error('Error:', err);
+    return [];
   }
 }
 
 export default async function Home() {
-  const { feeds, error } = await getEventsFromSupabase();
+  const feeds = await getEventsFromSupabase();
 
   return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-gray-400">Loading PULSE...</p>
-        </div>
-      </div>
-    }>
-      <HomeClient initialFeeds={feeds} error={error} />
+    <Suspense fallback={<div>Loading...</div>}>
+      <HomeClient initialFeeds={feeds} />
     </Suspense>
   );
 }
