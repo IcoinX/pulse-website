@@ -2,25 +2,25 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Category } from '@/types';
+import { FeedTab } from '@/types';
 import ThemeToggle from './ThemeToggle';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface HeaderProps {
-  activeCategory: Category;
-  onCategoryChange: (category: Category) => void;
+  activeTab: FeedTab;
+  onTabChange: (tab: FeedTab) => void;
 }
 
-const categories: { id: Category; label: string; icon: string }[] = [
-  { id: 'all', label: 'All Events', icon: '⚡' },
-  { id: 'crypto_agents', label: 'Crypto & Agents', icon: '₿' },
-  { id: 'ai_models', label: 'AI Models', icon: '🤖' },
-  { id: 'agents', label: 'Agents', icon: '🔮' },
-  { id: 'openclaw_tech', label: 'OpenClaw', icon: '🔧' },
-  { id: 'tech_world', label: 'Tech & World', icon: '🌐' },
+const tabs: { id: FeedTab; label: string; icon: string; color: string }[] = [
+  { id: 'all', label: 'All', icon: '⚡', color: 'text-purple-400' },
+  { id: 'events', label: 'Events', icon: '📰', color: 'text-blue-400' },
+  { id: 'agents', label: 'Agents', icon: '🤖', color: 'text-pink-400' },
+  { id: 'crypto', label: 'Crypto', icon: '⛓️', color: 'text-green-400' },
+  { id: 'ai', label: 'AI', icon: '🧠', color: 'text-cyan-400' },
+  { id: 'tech', label: 'Tech', icon: '🔧', color: 'text-orange-400' },
 ];
 
-export default function Header({ activeCategory, onCategoryChange }: HeaderProps) {
+export default function Header({ activeTab, onTabChange }: HeaderProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   return (
@@ -42,34 +42,37 @@ export default function Header({ activeCategory, onCategoryChange }: HeaderProps
                   Testnet
                 </span>
               </div>
-              <p className="text-xs text-gray-400">Agent Intelligence Feed</p>
-              <p className="text-[10px] text-gray-500 italic">A decentralized verification layer for events, signals, and agent intelligence.</p>
+              <p className="text-xs text-gray-400 hidden sm:block">Agent Intelligence Feed</p>
             </div>
           </Link>
 
-          {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center space-x-1">
-            {categories.map((cat) => (
-              <button
-                key={cat.id}
-                onClick={() => onCategoryChange(cat.id)}
-                className={`relative px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center space-x-2 ${
-                  activeCategory === cat.id
-                    ? 'text-white'
-                    : 'text-gray-400 hover:text-white hover:bg-white/5'
-                }`}
-              >
-                {activeCategory === cat.id && (
-                  <motion.div
-                    layoutId="activeCategory"
-                    className="absolute inset-0 bg-white/10 rounded-lg"
-                    transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
-                  />
-                )}
-                <span className="relative z-10">{cat.icon}</span>
-                <span className="relative z-10">{cat.label}</span>
-              </button>
-            ))}
+          {/* Desktop Navigation - New Tab Style */}
+          <nav className="hidden md:flex items-center">
+            <div className="flex items-center bg-white/5 rounded-xl p-1 border border-white/10">
+              {tabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => onTabChange(tab.id)}
+                  className={`relative px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center space-x-2 ${
+                    activeTab === tab.id
+                      ? 'bg-white/10 text-white'
+                      : 'text-gray-400 hover:text-white hover:bg-white/5'
+                  }`}
+                >
+                  {activeTab === tab.id && (
+                    <motion.div
+                      layoutId="activeTab"
+                      className="absolute inset-0 bg-gradient-to-r from-purple-500/20 to-blue-500/20 rounded-lg"
+                      transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
+                    />
+                  )}
+                  <span className={`relative z-10 ${activeTab === tab.id ? tab.color : ''}`}>
+                    {tab.icon}
+                  </span>
+                  <span className="relative z-10">{tab.label}</span>
+                </button>
+              ))}
+            </div>
           </nav>
 
           {/* Actions */}
@@ -127,21 +130,27 @@ export default function Header({ activeCategory, onCategoryChange }: HeaderProps
               className="md:hidden overflow-hidden border-t border-white/10"
             >
               <div className="py-4 space-y-2">
-                {categories.map((cat) => (
+                {tabs.map((tab) => (
                   <button
-                    key={cat.id}
+                    key={tab.id}
                     onClick={() => {
-                      onCategoryChange(cat.id);
+                      onTabChange(tab.id);
                       setIsMobileMenuOpen(false);
                     }}
-                    className={`w-full px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 flex items-center space-x-2 ${
-                      activeCategory === cat.id
+                    className={`w-full px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 flex items-center space-x-3 ${
+                      activeTab === tab.id
                         ? 'bg-white/10 text-white'
                         : 'text-gray-400 hover:text-white hover:bg-white/5'
                     }`}
                   >
-                    <span>{cat.icon}</span>
-                    <span>{cat.label}</span>
+                    <span className={activeTab === tab.id ? tab.color : ''}>{tab.icon}</span>
+                    <span>{tab.label}</span>
+                    {activeTab === tab.id && (
+                      <motion.div
+                        layoutId="activeTabMobile"
+                        className="ml-auto w-2 h-2 rounded-full bg-purple-500"
+                      />
+                    )}
                   </button>
                 ))}
               </div>

@@ -1,12 +1,15 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { motion } from 'framer-motion';
-import { Category, ProtocolEvent } from '@/types';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { FeedTab, ProtocolEvent, Category } from '@/types';
 import Header from '@/components/Header';
 import FeedSection from '@/components/FeedSection';
+import AgentActivityFeed from '@/components/AgentActivityFeed';
+import CryptoChainFeed from '@/components/CryptoChainFeed';
 import Sidebar from '@/components/Sidebar';
 import { protocolEvents } from '@/lib/data';
+import { agentActivities, cryptoChainEvents } from '@/lib/agentData';
 import toast from 'react-hot-toast';
 
 interface HomeClientProps {
@@ -14,8 +17,60 @@ interface HomeClientProps {
   error: string | null;
 }
 
+// Filter events based on tab
+function getEventsForTab(events: ProtocolEvent[], tab: FeedTab): ProtocolEvent[] {
+  switch (tab) {
+    case 'all':
+      return events;
+    case 'events':
+      // Return all events (news/signals/governance)
+      return events;
+    case 'agents':
+      // Return agent-related events
+      return events.filter(e => 
+        e.category === 'crypto_agents' || 
+        e.tags.some(t => ['agent', 'agents', 'validator'].includes(t.toLowerCase()))
+      );
+    case 'crypto':
+      // Return crypto-related events
+      return events.filter(e => 
+        e.category === 'crypto_agents' ||
+        e.tags.some(t => ['crypto', 'defi', 'ethereum', 'base', 'staking'].includes(t.toLowerCase()))
+      );
+    case 'ai':
+      // Return AI-related events
+      return events.filter(e => 
+        e.category === 'ai_models' ||
+        e.tags.some(t => ['ai', 'llm', 'gpt', 'claude', 'model', 'ml'].includes(t.toLowerCase()))
+      );
+    case 'tech':
+      // Return tech/world events
+      return events.filter(e => 
+        e.category === 'tech_world' || e.category === 'openclaw_tech'
+      );
+    default:
+      return events;
+  }
+}
+
+// Map FeedTab to Category for backward compatibility
+function tabToCategory(tab: FeedTab): Category {
+  switch (tab) {
+    case 'agents':
+      return 'agents';
+    case 'crypto':
+      return 'crypto';
+    case 'ai':
+      return 'ai_models';
+    case 'tech':
+      return 'tech_world';
+    default:
+      return 'all';
+  }
+}
+
 export default function HomeClient({ initialFeeds, error }: HomeClientProps) {
-  const [activeCategory, setActiveCategory] = useState<Category>('all');
+  const [activeTab, setActiveTab] = useState<FeedTab>('all');
   const [feeds, setFeeds] = useState<ProtocolEvent[]>(initialFeeds.length > 0 ? initialFeeds : protocolEvents);
   const [isLoading, setIsLoading] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
@@ -26,6 +81,11 @@ export default function HomeClient({ initialFeeds, error }: HomeClientProps) {
       toast.error('Failed to load feeds. Using fallback data.');
     }
   }, [error]);
+
+  // Filtered events based on active tab
+  const filteredEvents = useMemo(() => {
+    return getEventsForTab(feeds, activeTab);
+  }, [feeds, activeTab]);
 
   // Refresh feeds function
   const refreshFeeds = useCallback(async () => {
@@ -53,11 +113,79 @@ export default function HomeClient({ initialFeeds, error }: HomeClientProps) {
     return () => clearInterval(interval);
   }, [refreshFeeds]);
 
+  // Render the appropriate feed based on active tab
+  const renderFeed = () => {
+    switch (activeTab) {
+      case 'agents':
+        return (
+          <AgentActivityFeed 
+            activities={agentActivities}
+            isLoading={isLoading}
+            onRefresh={refreshFeeds}
+          />
+        );
+      case 'crypto':
+        return (
+          <CryptoChainFeed 
+            events={cryptoChainEvents}
+            isLoading={isLoading}
+            onRefresh={refreshFeeds}
+          />
+        );
+      case 'all':
+      case 'events':
+      case 'ai':
+      case 'tech':
+      default:
+        return (
+          <FeedSection 
+            items={filteredEvents} 
+            category={tabToCategory(activeTab)} 
+            isLoading={isLoading}
+            onRefresh={refreshFeeds}
+          />
+        );
+    }
+  };
+
+  // Get tab-specific title
+  const getTabTitle = () => {
+    switch (activeTab) {
+      case 'all': return 'All Feeds';
+      case 'events': return 'Protocol Events';
+      case 'agents': return 'Agent Activity';
+      case 'crypto': return 'Chain Events';
+      case 'ai': return 'AI & Models';
+      case 'tech': return 'Tech & World';
+      default: return 'PULSE Feed';
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 dark:from-gray-900 dark:via-black dark:to-gray-900 light:from-gray-100 light:via-white light:to-gray-100">
-      <Header activeCategory={activeCategory} onCategoryChange={setActiveCategory} />
+      <Header activeTab={activeTab} onTabChange={setActiveTab} />
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Tab Title Banner */}
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          key={activeTab}
+          className="mb-6"
+        >
+          <h1 className="text-3xl font-bold text-white">
+            {getTabTitle()}
+          </h1>
+          <p className="text-gray-400 mt-1">
+            {activeTab === 'agents' && 'Real-time activity from PULSE protocol agents'}
+            {activeTab === 'crypto' && 'On-chain events and protocol metrics'}
+            {activeTab === 'events' && 'Verified news, signals, and governance events'}
+            {activeTab === 'ai' && 'AI model updates, releases, and research'}
+            {activeTab === 'tech' && 'Technology and world news'}
+            {activeTab === 'all' && 'Mixed feed of all protocol activity'}
+          </p>
+        </motion.div>
+
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -66,12 +194,17 @@ export default function HomeClient({ initialFeeds, error }: HomeClientProps) {
         >
           {/* Main Feed */}
           <div className="lg:col-span-2">
-            <FeedSection 
-              items={feeds} 
-              category={activeCategory} 
-              isLoading={isLoading}
-              onRefresh={refreshFeeds}
-            />
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={activeTab}
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.3 }}
+              >
+                {renderFeed()}
+              </motion.div>
+            </AnimatePresence>
           </div>
 
           {/* Sidebar */}
