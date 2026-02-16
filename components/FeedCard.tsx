@@ -43,6 +43,7 @@ import {
 } from 'lucide-react';
 import BoostModal from './modals/BoostModal';
 import AssertionModal from './modals/AssertionModal';
+import { isWhitelisted } from '@/lib/whitelist';
 
 interface FeedCardProps {
   item: ProtocolEvent;
@@ -483,9 +484,10 @@ export default function FeedCard({ item, index = 0 }: FeedCardProps) {
   const [isEvidenceOpen, setIsEvidenceOpen] = useState(false);
   const [isBoostModalOpen, setIsBoostModalOpen] = useState(false);
   const [isAssertionModalOpen, setIsAssertionModalOpen] = useState(false);
-  const { isConnected } = useAccount();
+  const { isConnected, address } = useAccount();
   const { chain } = useNetwork();
   const isWrongChain = isConnected && chain?.id !== 84532;
+  const whitelisted = isWhitelisted(address);
   const totalImpact = Math.round((item.impact.market + item.impact.narrative + item.impact.tech) / 3);
 
   const handleBoost = (e: React.MouseEvent) => {
@@ -663,14 +665,23 @@ export default function FeedCard({ item, index = 0 }: FeedCardProps) {
                 bgClass="hover:bg-orange-500/10"
               />
 
-              {/* Boost Button - Active in Sprint 2.3 */}
-              <ActionButton 
-                icon={ChevronUp}
-                label="Boost"
-                onClick={handleBoost}
-                colorClass="text-green-400"
-                bgClass="hover:bg-green-500/10"
-              />
+              {/* Boost Button - Whitelist gated */}
+              {whitelisted ? (
+                <ActionButton 
+                  icon={ChevronUp}
+                  label="Boost"
+                  onClick={handleBoost}
+                  colorClass="text-green-400"
+                  bgClass="hover:bg-green-500/10"
+                />
+              ) : (
+                <GhostActionButton 
+                  icon={ChevronUp}
+                  label="Boost (Limited)"
+                  tooltip="Boost in limited test — access expanding soon"
+                  colorClass="text-green-400"
+                />
+              )}
 
               {/* Add Assertion Button - Disabled in dry-run mode (Sprint 2.4) */}
               <GhostActionButton 

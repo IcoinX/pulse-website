@@ -4,6 +4,8 @@ import { useState, useCallback } from 'react';
 import { ethers } from 'ethers';
 import { boostEvent, BoostParams, BOOST_TIERS } from '@/lib/contracts';
 import { useWallet } from './useWallet';
+import { isWhitelisted } from '@/lib/whitelist';
+import { logBoostAttempt } from '@/lib/analytics';
 
 type BoostState = 
   | { status: 'idle' }
@@ -14,8 +16,15 @@ type BoostState =
   | { status: 'error'; error: string };
 
 export function useBoost() {
-  const { signer, chainId } = useWallet();
+  const { signer, chainId, address } = useWallet();
   const [boostState, setBoostState] = useState<BoostState>({ status: 'idle' });
+
+  const canBoost = useCallback(() => {
+    if (!signer) return { ok: false, reason: 'Wallet not connected' };
+    if (chainId !== 84532) return { ok: false, reason: 'Please switch to Base Sepolia' };
+    if (!isWhitelisted(address)) return { ok: false, reason: 'Boost in limited test' };
+    return { ok: true };
+  }, [signer, chainId, address]);
 
   const boost = useCallback(async (params: BoostParams) => {
     if (!signer) {
@@ -25,6 +34,22 @@ export function useBoost() {
 
     if (chainId !== 84532) {
       setBoostState({ status: 'error', error: 'Please switch to Base Sepolia' });
+      return;
+    }
+
+    const userAddress = await signer.getAddress();
+    const whitelisted = isWhitelisted(userAddress);
+
+    if (!whitelisted) {
+      setBoostState({ status: 'error', error: 'Boost in limited test' });
+      logBoostAttempt({
+        address: userAddress,
+        whitelisted: false,
+        eventId: params.eventId,
+        tier: params.tier,
+        success: false,
+        error: 'Boost in limited test'
+      });
       return;
     }
 
@@ -38,17 +63,40 @@ export function useBoost() {
       // Wait for 2 confirmations
       const receipt = await tx.wait(2);
       
-      if (receipt?.status === 1) {
+      const success = receipt?.status === 1;
+      
+      if (success) {
         setBoostState({ status: 'confirmed', txHash: tx.hash });
       } else {
         setBoostState({ status: 'error', error: 'Transaction failed' });
       }
+
+      // Log the attempt
+      logBoostAttempt({
+        address: userAddress,
+        whitelisted: true,
+        eventId: params.eventId,
+        tier: params.tier,
+        success,
+        error: receipt?.status !== 1 ? 'Transaction failed' : undefined
+      });
     } catch (err: any) {
+      let errorMessage = err.message || 'Unknown error';
       if (err.code === 'ACTION_REJECTED') {
-        setBoostState({ status: 'error', error: 'User rejected signature' });
-      } else {
-        setBoostState({ status: 'error', error: err.message || 'Unknown error' });
+        errorMessage = 'User rejected signature';
       }
+      
+      setBoostState({ status: 'error', error: errorMessage });
+      
+      // Log the failed attempt
+      logBoostAttempt({
+        address: userAddress,
+        whitelisted: true,
+        eventId: params.eventId,
+        tier: params.tier,
+        success: false,
+        error: errorMessage
+      });
     }
   }, [signer, chainId]);
 
@@ -61,7 +109,8 @@ export function useBoost() {
     reset,
     state: boostState,
     isBoosting: boostState.status === 'awaiting_signature' || boostState.status === 'pending',
-    canBoost: boostState.status === 'idle' || boostState.status === 'error'
+    canBoost: boostState.status === 'idle' || boostState.status === 'error',
+    canBoostCheck: canBoost
   };
 }
 
