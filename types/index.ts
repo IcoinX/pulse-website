@@ -376,3 +376,61 @@ export interface OnChainSignal {
     params?: Record<string, unknown>;
   };
 }
+
+// ============================================
+// SPRINT 2: WALLET + DASHBOARD TYPES
+// ============================================
+
+// Assertion status for user dashboard
+export type AssertionStatus = 'pending' | 'challenged' | 'verified' | 'slashed';
+export type ActivityOutcome = 'win' | 'loss' | 'pending';
+export type ActivityType = 'boost' | 'assertion' | 'challenge' | 'resolution';
+
+// User stats for dashboard
+export interface UserStats {
+  wallet: string;
+  reputation: number;
+  eventsSubmitted: number;
+  assertionsCount: number;
+  challengesCount: number;
+  winRate: number;
+  totalStaked: string;
+  totalRewards: string;
+}
+
+// User activity for timeline
+export interface UserActivity {
+  id: string;
+  type: ActivityType;
+  eventId: number;
+  timestamp: string;
+  amount?: string;
+  outcome?: ActivityOutcome;
+  txHash: string;
+}
+
+// User assertion details
+export interface UserAssertion {
+  id: string;
+  eventId: number;
+  eventTitle: string;
+  eventHash: string;
+  type: 'Agent' | 'Human';
+  stake: string;
+  status: AssertionStatus;
+  outcome: ActivityOutcome;
+  createdAt: string;
+  resolvedAt?: string;
+}
+
+// User challenge details
+export interface UserChallenge {
+  id: string;
+  assertionId: number;
+  eventId?: number;
+  eventTitle: string;
+  stake: string;
+  counterHash: string;
+  resolved: boolean;
+  createdAt: string;
+}

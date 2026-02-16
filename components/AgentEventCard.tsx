@@ -1,6 +1,8 @@
 'use client';
 
+import { useState } from 'react';
 import { motion } from 'framer-motion';
+import { useAccount } from 'wagmi';
 import { AgentEvent, AgentEventType, AgentEventSourceKind, VerificationStatus } from '@/types';
 import { 
   formatTimeAgo 
@@ -25,6 +27,8 @@ import {
   Lock,
   Newspaper
 } from 'lucide-react';
+import BoostModal from './modals/BoostModal';
+import AssertionModal from './modals/AssertionModal';
 
 interface AgentEventCardProps {
   event: AgentEvent;
@@ -457,7 +461,32 @@ export default function AgentEventCard({ event, index = 0 }: AgentEventCardProps
         )}
       </div>
       
-      {/* Actions Bar - Sprint 1.5: Ghost Actions with Lock */}
+      {/* Actions Bar - Sprint 2: Wallet-gated CTAs */}
+      <AgentEventCardActions event={event} />
+    </motion.article>
+  );
+}
+
+// Separate component for actions to use hooks
+function AgentEventCardActions({ event }: { event: AgentEvent }) {
+  const [isBoostModalOpen, setIsBoostModalOpen] = useState(false);
+  const [isAssertionModalOpen, setIsAssertionModalOpen] = useState(false);
+  const { isConnected } = useAccount();
+
+  const handleBoost = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsBoostModalOpen(true);
+  };
+
+  const handleAssertion = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsAssertionModalOpen(true);
+  };
+
+  return (
+    <>
       <div className="px-5 py-3 border-t border-white/5 bg-white/[0.02] flex items-center justify-between">
         <div className="flex items-center gap-2">
           <button className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-purple-400 hover:text-purple-300 hover:bg-purple-500/10 rounded-lg transition-colors">
@@ -471,23 +500,61 @@ export default function AgentEventCard({ event, index = 0 }: AgentEventCardProps
         </div>
         
         <div className="flex items-center gap-2">
-          {/* Sprint 1.5: Challenge Ghost Action */}
-          {event.status !== 'REJECTED' && (
-            <GhostActionButton 
-              icon={AlertTriangle}
-              label="Challenge"
-              tooltip="Requires wallet connection"
-              colorClass="text-orange-400"
-            />
+          {isConnected ? (
+            <>
+              {/* Challenge Button - Active when connected */}
+              {event.status !== 'REJECTED' && (
+                <button className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-orange-400 hover:text-orange-300 hover:bg-orange-500/10 rounded-lg transition-colors">
+                  <AlertTriangle className="w-3.5 h-3.5" />
+                  Challenge
+                </button>
+              )}
+              
+              {/* Boost Button - Active when connected */}
+              <button 
+                onClick={handleBoost}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-green-400 hover:text-green-300 hover:bg-green-500/10 rounded-lg transition-colors"
+              >
+                <Zap className="w-3.5 h-3.5" />
+                Boost
+              </button>
+              
+              {/* Add Assertion Button - Active when connected */}
+              <button 
+                onClick={handleAssertion}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-400 hover:text-blue-300 hover:bg-blue-500/10 rounded-lg transition-colors"
+              >
+                <Shield className="w-3.5 h-3.5" />
+                Assert
+              </button>
+            </>
+          ) : (
+            <>
+              {/* Ghost Actions when not connected */}
+              {event.status !== 'REJECTED' && (
+                <GhostActionButton 
+                  icon={AlertTriangle}
+                  label="Challenge"
+                  tooltip="Connect wallet to challenge"
+                  colorClass="text-orange-400"
+                />
+              )}
+              
+              <GhostActionButton 
+                icon={Zap}
+                label="Boost"
+                tooltip="Connect wallet to boost"
+                colorClass="text-green-400"
+              />
+              
+              <GhostActionButton 
+                icon={Shield}
+                label="Assert"
+                tooltip="Connect wallet to add assertion"
+                colorClass="text-blue-400"
+              />
+            </>
           )}
-          
-          {/* Sprint 1.5: Boost Ghost Action */}
-          <GhostActionButton 
-            icon={Zap}
-            label="Boost"
-            tooltip="Requires wallet + GENESIS"
-            colorClass="text-green-400"
-          />
           
           <button className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
             <ExternalLink className="w-3.5 h-3.5" />
@@ -495,6 +562,21 @@ export default function AgentEventCard({ event, index = 0 }: AgentEventCardProps
           </button>
         </div>
       </div>
-    </motion.article>
+
+      {/* Modals */}
+      <BoostModal
+        isOpen={isBoostModalOpen}
+        onClose={() => setIsBoostModalOpen(false)}
+        eventId={parseInt(event.id) || 0}
+        eventTitle={event.title}
+      />
+
+      <AssertionModal
+        isOpen={isAssertionModalOpen}
+        onClose={() => setIsAssertionModalOpen(false)}
+        eventId={parseInt(event.id) || 0}
+        eventTitle={event.title}
+      />
+    </>
   );
 }

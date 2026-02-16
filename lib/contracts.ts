@@ -58,7 +58,7 @@ export async function boostEvent(
   }
   
   const contract = new ethers.Contract(contractAddress, BOOSTS_ABI, signer);
-  const tx = await contract.boost(eventId, tier, { value: ethers.parseEther(value) });
+  const tx = await contract.boost(eventId, tier, { value: ethers.utils.parseEther(value) });
   return tx.wait();
 }
 
@@ -76,7 +76,7 @@ export async function createAssertion(
   }
   
   const contract = new ethers.Contract(contractAddress, ASSERTIONS_ABI, signer);
-  const tx = await contract.createAssertion(eventId, type, claimHash, { value: ethers.parseEther(stake) });
+  const tx = await contract.createAssertion(eventId, type, claimHash, { value: ethers.utils.parseEther(stake) });
   return tx.wait();
 }
 
@@ -93,7 +93,7 @@ export async function challengeAssertion(
   }
   
   const contract = new ethers.Contract(contractAddress, ASSERTIONS_ABI, signer);
-  const tx = await contract.challengeAssertion(assertionId, counterHash, { value: ethers.parseEther(stake) });
+  const tx = await contract.challengeAssertion(assertionId, counterHash, { value: ethers.utils.parseEther(stake) });
   return tx.wait();
 }
 
@@ -114,7 +114,7 @@ export async function resolveAssertion(
 }
 
 // Read functions
-export async function getTierPrice(tier: number, provider: ethers.Provider, chainId: number = 84532): Promise<string> {
+export async function getTierPrice(tier: number, provider: ethers.providers.Provider, chainId: number = 84532): Promise<string> {
   const contractAddress = CONTRACTS[chainId as keyof typeof CONTRACTS]?.boosts;
   if (!contractAddress) {
     throw new Error(`No boosts contract for chain ${chainId}`);
@@ -122,12 +122,12 @@ export async function getTierPrice(tier: number, provider: ethers.Provider, chai
   
   const contract = new ethers.Contract(contractAddress, BOOSTS_ABI, provider);
   const price = await contract.tierPrices(tier);
-  return ethers.formatEther(price);
+  return ethers.utils.formatEther(price);
 }
 
 export async function getBoostStatus(
   eventId: number, 
-  provider: ethers.Provider, 
+  provider: ethers.providers.Provider, 
   chainId: number = 84532
 ): Promise<{ isBoosted: boolean; endTime: number; tier: number; booster: string }> {
   const contractAddress = CONTRACTS[chainId as keyof typeof CONTRACTS]?.boosts;
@@ -137,12 +137,12 @@ export async function getBoostStatus(
   
   const contract = new ethers.Contract(contractAddress, BOOSTS_ABI, provider);
   const [isBoosted, endTime, tier, booster] = await contract.getBoostStatus(eventId);
-  return { isBoosted, endTime: Number(endTime), tier, booster };
+  return { isBoosted, endTime: endTime.toNumber(), tier, booster };
 }
 
 export async function getAssertion(
   assertionId: number,
-  provider: ethers.Provider,
+  provider: ethers.providers.Provider,
   chainId: number = 84532
 ): Promise<{
   eventId: number;
@@ -163,19 +163,19 @@ export async function getAssertion(
     await contract.getAssertion(assertionId);
   
   return {
-    eventId: Number(eventId),
+    eventId: eventId.toNumber(),
     asserter,
-    assertionType: Number(assertionType),
+    assertionType,
     claimHash,
-    stakeAmount: ethers.formatEther(stakeAmount),
-    challengeDeadline: Number(challengeDeadline),
-    status: Number(status)
+    stakeAmount: ethers.utils.formatEther(stakeAmount),
+    challengeDeadline: challengeDeadline.toNumber(),
+    status
   };
 }
 
 export async function getChallenge(
   challengeId: number,
-  provider: ethers.Provider,
+  provider: ethers.providers.Provider,
   chainId: number = 84532
 ): Promise<{
   assertionId: number;
@@ -194,9 +194,9 @@ export async function getChallenge(
     await contract.getChallenge(challengeId);
   
   return {
-    assertionId: Number(assertionId),
+    assertionId: assertionId.toNumber(),
     challenger,
-    stakeAmount: ethers.formatEther(stakeAmount),
+    stakeAmount: ethers.utils.formatEther(stakeAmount),
     counterHash,
     resolved
   };

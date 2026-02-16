@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useAccount } from 'wagmi';
 import { ProtocolEvent, SourceType, Evidence, VerificationStatus } from '@/types';
 import { 
   formatTimeAgo, 
@@ -40,11 +41,36 @@ import {
   Blocks,
   Lock
 } from 'lucide-react';
+import BoostModal from './modals/BoostModal';
+import AssertionModal from './modals/AssertionModal';
 
 interface FeedCardProps {
   item: ProtocolEvent;
   index?: number;
 }
+
+// Action Button Component (for connected users)
+const ActionButton = ({ 
+  icon: Icon,
+  label,
+  onClick,
+  colorClass = 'text-gray-400',
+  bgClass = 'hover:bg-white/5'
+}: { 
+  icon: React.ElementType;
+  label: string;
+  onClick: (e: React.MouseEvent) => void;
+  colorClass?: string;
+  bgClass?: string;
+}) => (
+  <button 
+    onClick={onClick}
+    className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium ${colorClass} ${bgClass} rounded-lg transition-colors`}
+  >
+    <Icon className="w-3.5 h-3.5" />
+    {label}
+  </button>
+);
 
 // Source type configuration
 const sourceConfig: Record<SourceType, { icon: React.ReactNode; label: string; color: string; bgColor: string }> = {
@@ -334,7 +360,8 @@ const GhostActionButton = ({
       disabled
       className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium opacity-50 cursor-not-allowed ${colorClass} hover:bg-white/5 rounded-lg transition-colors`}
     >
-      <Lock className="w-3 h-3" />
+      <Icon className="w-3.5 h-3.5" />
+      <Lock className="w-3 h-3 opacity-70" />
       {label}
     </button>
     <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-xs text-gray-300 rounded-lg border border-white/10 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-20 shadow-lg">
@@ -454,7 +481,22 @@ const ImpactBars = ({ impact }: { impact: ProtocolEvent['impact'] }) => {
 
 export default function FeedCard({ item, index = 0 }: FeedCardProps) {
   const [isEvidenceOpen, setIsEvidenceOpen] = useState(false);
+  const [isBoostModalOpen, setIsBoostModalOpen] = useState(false);
+  const [isAssertionModalOpen, setIsAssertionModalOpen] = useState(false);
+  const { isConnected } = useAccount();
   const totalImpact = Math.round((item.impact.market + item.impact.narrative + item.impact.tech) / 3);
+
+  const handleBoost = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsBoostModalOpen(true);
+  };
+
+  const handleAssertion = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsAssertionModalOpen(true);
+  };
 
   return (
     <motion.div
@@ -596,10 +638,10 @@ export default function FeedCard({ item, index = 0 }: FeedCardProps) {
         onToggle={() => setIsEvidenceOpen(!isEvidenceOpen)} 
       />
 
-      {/* Actions Bar - Sprint 1.5: Ghost Actions with Lock */}
+      {/* Actions Bar - Sprint 2: Wallet-gated CTAs */}
       <div className="px-5 py-3 border-t border-white/5 bg-white/[0.02] flex items-center justify-between">
         <div className="flex items-center gap-2 flex-wrap">
-          {/* Open Button - Active */}
+          {/* Open Button - Always Active */}
           <Link
             href={`/event/${item.id}`}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-purple-400 hover:text-purple-300 hover:bg-purple-500/10 rounded-lg transition-colors"
@@ -608,31 +650,60 @@ export default function FeedCard({ item, index = 0 }: FeedCardProps) {
             Open
           </Link>
 
-          {/* Sprint 1.5: Challenge Ghost Action */}
-          <GhostActionButton 
-            icon={AlertTriangle}
-            label="Challenge"
-            tooltip="Requires wallet connection"
-            colorClass="text-orange-400"
-          />
+          {isConnected ? (
+            <>
+              {/* Challenge Button - Active when connected */}
+              <ActionButton 
+                icon={AlertTriangle}
+                label="Challenge"
+                onClick={() => {}} // TODO: Open challenge modal with assertion ID
+                colorClass="text-orange-400"
+                bgClass="hover:bg-orange-500/10"
+              />
 
-          {/* Sprint 1.5: Boost Ghost Action */}
-          <GhostActionButton 
-            icon={ChevronUp}
-            label="Boost"
-            tooltip="Requires wallet + GENESIS"
-            colorClass="text-green-400"
-          />
+              {/* Boost Button - Disabled in dry-run mode (Sprint 2.3) */}
+              <GhostActionButton 
+                icon={ChevronUp}
+                label="Boost"
+                tooltip="Coming in Sprint 2.3"
+                colorClass="text-green-400"
+              />
 
-          {/* Sprint 1.5: Submit Evidence Ghost Action */}
-          <GhostActionButton 
-            icon={Shield}
-            label="Submit Evidence"
-            tooltip="Requires wallet connection"
-            colorClass="text-blue-400"
-          />
+              {/* Add Assertion Button - Disabled in dry-run mode (Sprint 2.4) */}
+              <GhostActionButton 
+                icon={Shield}
+                label="Add Assertion"
+                tooltip="Coming in Sprint 2.4"
+                colorClass="text-blue-400"
+              />
+            </>
+          ) : (
+            <>
+              {/* Ghost Actions when not connected */}
+              <GhostActionButton 
+                icon={AlertTriangle}
+                label="Challenge"
+                tooltip="Connect wallet to challenge"
+                colorClass="text-orange-400"
+              />
 
-          {/* Share Button - Active */}
+              <GhostActionButton 
+                icon={ChevronUp}
+                label="Boost"
+                tooltip="Connect wallet to boost"
+                colorClass="text-green-400"
+              />
+
+              <GhostActionButton 
+                icon={Shield}
+                label="Add Assertion"
+                tooltip="Connect wallet to add assertion"
+                colorClass="text-blue-400"
+              />
+            </>
+          )}
+
+          {/* Share Button - Always Active */}
           <button
             onClick={(e) => {
               e.preventDefault();
@@ -658,6 +729,21 @@ export default function FeedCard({ item, index = 0 }: FeedCardProps) {
           <span className="hidden sm:inline">Source</span>
         </a>
       </div>
+
+      {/* Modals */}
+      <BoostModal
+        isOpen={isBoostModalOpen}
+        onClose={() => setIsBoostModalOpen(false)}
+        eventId={parseInt(item.id) || 0}
+        eventTitle={item.title}
+      />
+
+      <AssertionModal
+        isOpen={isAssertionModalOpen}
+        onClose={() => setIsAssertionModalOpen(false)}
+        eventId={parseInt(item.id) || 0}
+        eventTitle={item.title}
+      />
     </motion.div>
   );
 }

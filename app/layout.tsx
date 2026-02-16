@@ -1,6 +1,7 @@
 import './globals.css';
 import type { Metadata } from 'next';
 import { ThemeProvider } from '@/components/ThemeProvider';
+import { Web3Provider } from '@/components/Web3Provider';
 import { Toaster } from 'react-hot-toast';
 
 export const metadata: Metadata = {
@@ -28,32 +29,34 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="antialiased">
-        <ThemeProvider>
-          {children}
-          <Toaster 
-            position="bottom-right"
-            toastOptions={{
-              duration: 3000,
-              style: {
-                background: '#1f2937',
-                color: '#fff',
-                border: '1px solid rgba(255,255,255,0.1)',
-              },
-              success: {
-                iconTheme: {
-                  primary: '#10b981',
-                  secondary: '#fff',
+        <Web3Provider>
+          <ThemeProvider>
+            {children}
+            <Toaster 
+              position="bottom-right"
+              toastOptions={{
+                duration: 3000,
+                style: {
+                  background: '#1f2937',
+                  color: '#fff',
+                  border: '1px solid rgba(255,255,255,0.1)',
                 },
-              },
-              error: {
-                iconTheme: {
-                  primary: '#ef4444',
-                  secondary: '#fff',
+                success: {
+                  iconTheme: {
+                    primary: '#10b981',
+                    secondary: '#fff',
+                  },
                 },
-              },
-            }}
-          />
-        </ThemeProvider>
+                error: {
+                  iconTheme: {
+                    primary: '#ef4444',
+                    secondary: '#fff',
+                  },
+                },
+              }}
+            />
+          </ThemeProvider>
+        </Web3Provider>
       </body>
     </html>
   );

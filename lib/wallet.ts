@@ -9,7 +9,7 @@ export const CONTRACTS = {
   84532: {
     registry: '0xF3c4AE463d1f74E24F459fdd42F4982421C324ed',
     boosts: '0x076A3083Cc9D31CB104cF99fFc8a03c2442ecaFf',
-    assertions: '0xBfF6715cDdB6FE12b10db5E7A856b1DBB6633B59'
+    assertions: '0x09aC7b2Dd0fcE191E3423357cd98a70c3706bfdc' // V2
   },
   8453: {
     registry: '0x0000000000000000000000000000000000000000', // TODO: Add mainnet addresses
@@ -32,13 +32,22 @@ export const TIER_LABELS: Record<number, string> = {
 
 export const MIN_STAKE = '0.01';
 
+// Sprint 2.1: Wallet State Type
+export type WalletState = {
+  address: string | null;
+  chainId: number | null;
+  isConnected: boolean;
+  provider: ethers.providers.Web3Provider | null;
+  signer: ethers.providers.JsonRpcSigner | null;
+};
+
 // Get provider for a specific chain
-export function getProvider(chainId: number = 84532): ethers.JsonRpcProvider {
+export function getProvider(chainId: number = 84532): ethers.providers.JsonRpcProvider {
   const chain = SUPPORTED_CHAINS[chainId as keyof typeof SUPPORTED_CHAINS];
   if (!chain) {
     throw new Error(`Chain ${chainId} not supported`);
   }
-  return new ethers.JsonRpcProvider(chain.rpc);
+  return new ethers.providers.JsonRpcProvider(chain.rpc);
 }
 
 // Format address for display
@@ -47,12 +56,83 @@ export function formatAddress(address: string): string {
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
 }
 
+// Sprint 2.1: Connect MetaMask
+export async function connectMetaMask(): Promise<WalletState> {
+  if (!window.ethereum) {
+    throw new Error('MetaMask not installed');
+  }
+  
+  // ethers v5 uses Web3Provider for browser wallets
+  const provider = new ethers.providers.Web3Provider(window.ethereum);
+  await provider.send('eth_requestAccounts', []);
+  const signer = provider.getSigner();
+  const address = await signer.getAddress();
+  const network = await provider.getNetwork();
+  const chainId = network.chainId;
+  
+  return {
+    address,
+    chainId,
+    isConnected: true,
+    provider,
+    signer
+  };
+}
+
+// Sprint 2.1: Connect WalletConnect (placeholder)
+export async function connectWalletConnect(): Promise<WalletState> {
+  // Basic implementation with Web3Modal or WalletConnect
+  // Can be placeholder for now with TODO comment
+  throw new Error('WalletConnect coming in Sprint 2.2');
+}
+
+// Sprint 2.1: Disconnect Wallet
+export async function disconnectWallet(): Promise<WalletState> {
+  return {
+    address: null,
+    chainId: null,
+    isConnected: false,
+    provider: null,
+    signer: null
+  };
+}
+
+// Sprint 2.1: Check if chain is supported
+export function isSupportedChain(chainId: number): boolean {
+  return chainId in SUPPORTED_CHAINS;
+}
+
+// Sprint 2.1: Switch to Base Sepolia
+export async function switchToBaseSepolia(): Promise<void> {
+  if (!window.ethereum) return;
+  
+  try {
+    await window.ethereum.request({
+      method: 'wallet_switchEthereumChain',
+      params: [{ chainId: '0x14a34' }], // 84532 in hex
+    });
+  } catch (switchError: any) {
+    if (switchError.code === 4902) {
+      await window.ethereum.request({
+        method: 'wallet_addEthereumChain',
+        params: [{
+          chainId: '0x14a34',
+          chainName: 'Base Sepolia',
+          rpcUrls: ['https://sepolia.base.org'],
+          nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
+          blockExplorerUrls: ['https://sepolia.basescan.org']
+        }]
+      });
+    }
+  }
+}
+
 // Get ETH balance for an address
 export async function getEthBalance(address: string, chainId: number = 84532): Promise<string> {
   try {
     const provider = getProvider(chainId);
     const balance = await provider.getBalance(address);
-    return ethers.formatEther(balance);
+    return ethers.utils.formatEther(balance);
   } catch (error) {
     console.error('Error fetching ETH balance:', error);
     return '0';
@@ -79,14 +159,14 @@ export async function getUsdcBalance(address: string, chainId: number = 84532): 
       usdcContract.decimals()
     ]);
     
-    return ethers.formatUnits(balance, decimals);
+    return ethers.utils.formatUnits(balance, decimals);
   } catch (error) {
     console.error('Error fetching USDC balance:', error);
     return '0';
   }
 }
 
-// Switch to the correct chain
+// Switch to the correct chain (legacy, keeping for compatibility)
 export async function switchToChain(chainId: number): Promise<void> {
   if (!window.ethereum) {
     throw new Error('No wallet detected');
@@ -160,16 +240,4 @@ export function getAddressExplorerUrl(address: string, chainId: number = 84532):
   
   const base = explorers[chainId] || explorers[84532];
   return `${base}/address/${address}`;
-}
-
-// Type declarations for window.ethereum
-declare global {
-  interface Window {
-    ethereum?: {
-      request: (args: { method: string; params?: any[] }) => Promise<any>;
-      on: (event: string, callback: (...args: any[]) => void) => void;
-      removeListener: (event: string, callback: (...args: any[]) => void) => void;
-      isMetaMask?: boolean;
-    };
-  }
 }
