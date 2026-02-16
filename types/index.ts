@@ -74,6 +74,23 @@ export interface Annotation {
   votes: number;
 }
 
+// Evidence interface for verifiable proof
+export interface Evidence {
+  source_type: SourceType;
+  chain?: string;
+  block_number?: number;
+  tx_hash?: string;
+  contract?: string;
+  repo?: string;
+  commit_sha?: string;
+  release_tag?: string;
+  tweet_id?: string;
+  author_handle?: string;
+  media_source?: string;
+  url: string;
+  timestamp: string;
+}
+
 // Legacy compatibility - FeedItem is now ProtocolEvent
 export interface ProtocolEvent {
   id: string;
@@ -97,6 +114,11 @@ export interface ProtocolEvent {
   tags: string[];
   author?: string;
   imageUrl?: string;
+  
+  // Sprint 1: Truthful Feed additions
+  source_type: SourceType;
+  evidence: Evidence[];
+  signals_attached?: number; // for dedup
 }
 
 // Alias for backward compatibility
@@ -223,7 +245,10 @@ export type AgentEventType =
   | 'AGENT_PROMOTED';    // on-chain: top validator
 
 // Source kinds for Agent Events
-export type AgentEventSourceKind = 'ONCHAIN' | 'GITHUB' | 'X';
+export type AgentEventSourceKind = 'ONCHAIN' | 'GITHUB' | 'X' | 'MEDIA';
+
+// Source type for feed cards
+export type SourceType = 'ONCHAIN' | 'GITHUB' | 'X' | 'MEDIA';
 
 // Verification badge levels
 export type VerificationBadge = 'RAW' | 'CHECKED' | 'VERIFIED';

@@ -1,8 +1,16 @@
-import { ProtocolEvent, TrendingTopic, TopAgent, ProtocolStats, EventStatus, ProofTag, TimelineEvent } from '@/types';
+import { ProtocolEvent, TrendingTopic, TopAgent, ProtocolStats, EventStatus, ProofTag, TimelineEvent, Evidence, SourceType } from '@/types';
 
 // Helper to generate timestamps
 const hoursAgo = (h: number) => new Date(Date.now() - h * 60 * 60 * 1000).toISOString();
 const minutesAgo = (m: number) => new Date(Date.now() - m * 60 * 1000).toISOString();
+
+// Helper to create evidence
+const createEvidence = (type: SourceType, data: Partial<Evidence>): Evidence => ({
+  source_type: type,
+  url: data.url || '#',
+  timestamp: data.timestamp || new Date().toISOString(),
+  ...data
+});
 
 // Generate proof tags
 const generateProofTags = (status: EventStatus, sourceCount: number): ProofTag[] => {

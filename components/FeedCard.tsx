@@ -1,8 +1,9 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
-import { motion } from 'framer-motion';
-import { ProtocolEvent } from '@/types';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ProtocolEvent, SourceType, Evidence } from '@/types';
 import { 
   formatTimeAgo, 
   getStatusBgColor,
@@ -23,13 +24,254 @@ import {
   CheckCircle,
   XCircle,
   AlertTriangle,
-  Clock
+  Clock,
+  ChevronDown,
+  Link2,
+  Github,
+  Twitter,
+  Newspaper,
+  Database,
+  FileCode,
+  GitCommit,
+  Tag,
+  Blocks
 } from 'lucide-react';
 
 interface FeedCardProps {
   item: ProtocolEvent;
   index?: number;
 }
+
+// Source type configuration
+const sourceConfig: Record<SourceType, { icon: React.ReactNode; label: string; color: string; bgColor: string }> = {
+  ONCHAIN: {
+    icon: <Blocks className="w-3 h-3" />,
+    label: 'On-chain',
+    color: 'text-purple-400',
+    bgColor: 'bg-purple-500/10 border-purple-500/30'
+  },
+  GITHUB: {
+    icon: <Github className="w-3 h-3" />,
+    label: 'GitHub',
+    color: 'text-gray-400',
+    bgColor: 'bg-gray-500/10 border-gray-500/30'
+  },
+  X: {
+    icon: <Twitter className="w-3 h-3" />,
+    label: 'X',
+    color: 'text-blue-400',
+    bgColor: 'bg-blue-500/10 border-blue-500/30'
+  },
+  MEDIA: {
+    icon: <Newspaper className="w-3 h-3" />,
+    label: 'Media',
+    color: 'text-orange-400',
+    bgColor: 'bg-orange-500/10 border-orange-500/30'
+  }
+};
+
+// Source Type Badge component
+const SourceTypeBadge = ({ type, signalsAttached }: { type: SourceType; signalsAttached?: number }) => {
+  const config = sourceConfig[type];
+  
+  return (
+    <div className="flex items-center gap-2">
+      <span className={`flex items-center gap-1.5 px-2 py-0.5 text-xs font-medium rounded-full border ${config.bgColor} ${config.color}`}>
+        {config.icon}
+        {config.label}
+      </span>
+      {signalsAttached && signalsAttached > 1 && (
+        <span className="flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium bg-green-500/10 text-green-400 border border-green-500/30 rounded-full">
+          <Link2 className="w-3 h-3" />
+          {signalsAttached} signals
+        </span>
+      )}
+    </div>
+  );
+};
+
+// Evidence accordion component
+const EvidenceAccordion = ({ evidence, isOpen, onToggle }: { evidence: Evidence[]; isOpen: boolean; onToggle: () => void }) => {
+  if (!evidence || evidence.length === 0) return null;
+
+  return (
+    <div className="border-t border-white/5">
+      <button
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          onToggle();
+        }}
+        className="w-full px-5 py-2.5 flex items-center justify-between text-xs text-gray-400 hover:text-white hover:bg-white/5 transition-colors"
+      >
+        <span className="flex items-center gap-2">
+          <Database className="w-3.5 h-3.5" />
+          Show Evidence ({evidence.length} {evidence.length === 1 ? 'source' : 'sources'})
+        </span>
+        <motion.div
+          animate={{ rotate: isOpen ? 180 : 0 }}
+          transition={{ duration: 0.2 }}
+        >
+          <ChevronDown className="w-4 h-4" />
+        </motion.div>
+      </button>
+
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden"
+          >
+            <div className="px-5 pb-4 space-y-3">
+              {evidence.map((ev, idx) => (
+                <EvidenceCard key={idx} evidence={ev} index={idx} />
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
+// Individual evidence card
+const EvidenceCard = ({ evidence, index }: { evidence: Evidence; index: number }) => {
+  const getEvidenceIcon = () => {
+    switch (evidence.source_type) {
+      case 'ONCHAIN': return <Blocks className="w-4 h-4 text-purple-400" />;
+      case 'GITHUB': return <Github className="w-4 h-4 text-gray-400" />;
+      case 'X': return <Twitter className="w-4 h-4 text-blue-400" />;
+      case 'MEDIA': return <Newspaper className="w-4 h-4 text-orange-400" />;
+      default: return <Database className="w-4 h-4 text-gray-400" />;
+    }
+  };
+
+  const getEvidenceContent = () => {
+    switch (evidence.source_type) {
+      case 'ONCHAIN':
+        return (
+          <div className="space-y-1 text-xs">
+            <div className="flex items-center gap-2">
+              <span className="text-gray-500">Chain:</span>
+              <span className="text-purple-300 font-medium">{evidence.chain || 'Base Sepolia'}</span>
+            </div>
+            {evidence.block_number && (
+              <div className="flex items-center gap-2">
+                <span className="text-gray-500">Block:</span>
+                <span className="text-gray-300">#{evidence.block_number.toLocaleString()}</span>
+              </div>
+            )}
+            {evidence.tx_hash && (
+              <div className="flex items-center gap-2">
+                <span className="text-gray-500">Tx Hash:</span>
+                <span className="text-gray-300 font-mono">{evidence.tx_hash.slice(0, 10)}...{evidence.tx_hash.slice(-6)}</span>
+              </div>
+            )}
+            {evidence.contract && (
+              <div className="flex items-center gap-2">
+                <span className="text-gray-500">Contract:</span>
+                <span className="text-gray-300 font-mono">{evidence.contract.slice(0, 10)}...{evidence.contract.slice(-6)}</span>
+              </div>
+            )}
+          </div>
+        );
+      case 'GITHUB':
+        return (
+          <div className="space-y-1 text-xs">
+            {evidence.repo && (
+              <div className="flex items-center gap-2">
+                <FileCode className="w-3 h-3 text-gray-500" />
+                <span className="text-gray-300">{evidence.repo}</span>
+              </div>
+            )}
+            {evidence.commit_sha && (
+              <div className="flex items-center gap-2">
+                <GitCommit className="w-3 h-3 text-gray-500" />
+                <span className="text-gray-300 font-mono">{evidence.commit_sha.slice(0, 7)}</span>
+              </div>
+            )}
+            {evidence.release_tag && (
+              <div className="flex items-center gap-2">
+                <Tag className="w-3 h-3 text-gray-500" />
+                <span className="text-green-300">{evidence.release_tag}</span>
+              </div>
+            )}
+          </div>
+        );
+      case 'X':
+        return (
+          <div className="space-y-1 text-xs">
+            {evidence.author_handle && (
+              <div className="flex items-center gap-2">
+                <span className="text-gray-500">Author:</span>
+                <span className="text-blue-300">{evidence.author_handle}</span>
+              </div>
+            )}
+            {evidence.tweet_id && (
+              <div className="flex items-center gap-2">
+                <span className="text-gray-500">Tweet ID:</span>
+                <span className="text-gray-300 font-mono">{evidence.tweet_id.slice(0, 15)}...</span>
+              </div>
+            )}
+            <div className="flex items-center gap-2">
+              <span className="text-gray-500">Whitelisted:</span>
+              <span className="text-green-400">✓ Verified</span>
+            </div>
+          </div>
+        );
+      case 'MEDIA':
+        return (
+          <div className="space-y-1 text-xs">
+            {evidence.media_source && (
+              <div className="flex items-center gap-2">
+                <Newspaper className="w-3 h-3 text-gray-500" />
+                <span className="text-orange-300">{evidence.media_source}</span>
+              </div>
+            )}
+            <div className="flex items-center gap-2">
+              <span className="text-gray-500">Published:</span>
+              <span className="text-gray-300">{new Date(evidence.timestamp).toLocaleString()}</span>
+            </div>
+          </div>
+        );
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div className="bg-black/30 rounded-lg p-3 border border-white/5">
+      <div className="flex items-start gap-3">
+        <div className="p-2 bg-white/5 rounded-lg">
+          {getEvidenceIcon()}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between mb-1">
+            <span className={`text-xs font-medium ${sourceConfig[evidence.source_type].color}`}>
+              {sourceConfig[evidence.source_type].label}
+            </span>
+            <a
+              href={evidence.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="flex items-center gap-1 text-[10px] text-gray-400 hover:text-white transition-colors"
+            >
+              <ExternalLink className="w-3 h-3" />
+              View {evidence.source_type === 'ONCHAIN' ? 'on Explorer' : 
+                     evidence.source_type === 'GITHUB' ? 'on GitHub' : 
+                     evidence.source_type === 'X' ? 'on X' : 'Article'}
+            </a>
+          </div>
+          {getEvidenceContent()}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 // Tooltip component for disabled buttons
 const TooltipButton = ({ 
@@ -141,6 +383,7 @@ const ImpactBars = ({ impact }: { impact: ProtocolEvent['impact'] }) => {
 };
 
 export default function FeedCard({ item, index = 0 }: FeedCardProps) {
+  const [isEvidenceOpen, setIsEvidenceOpen] = useState(false);
   const totalImpact = Math.round((item.impact.market + item.impact.narrative + item.impact.tech) / 3);
 
   return (
@@ -171,8 +414,13 @@ export default function FeedCard({ item, index = 0 }: FeedCardProps) {
             <span className="text-xs text-gray-500">{formatTimeAgo(item.timestamp)}</span>
           </div>
 
-          {/* Status Badge */}
-          <StatusBadge status={item.status} />
+          <div className="flex items-center gap-2">
+            {/* Source Type Badge */}
+            <SourceTypeBadge type={item.source_type} signalsAttached={item.signals_attached} />
+            
+            {/* Status Badge */}
+            <StatusBadge status={item.status} />
+          </div>
         </div>
 
         {/* Main Content */}
@@ -264,6 +512,13 @@ export default function FeedCard({ item, index = 0 }: FeedCardProps) {
           </div>
         </div>
       </Link>
+
+      {/* Evidence Accordion */}
+      <EvidenceAccordion 
+        evidence={item.evidence} 
+        isOpen={isEvidenceOpen} 
+        onToggle={() => setIsEvidenceOpen(!isEvidenceOpen)} 
+      />
 
       {/* Actions Bar */}
       <div className="px-5 py-3 border-t border-white/5 bg-white/[0.02] flex items-center justify-between">
