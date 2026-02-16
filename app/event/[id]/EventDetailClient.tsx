@@ -43,6 +43,7 @@ import { useAccount, useNetwork } from 'wagmi';
 import CanonicalEventView from '@/components/CanonicalEventView';
 import BoostModal from '@/components/modals/BoostModal';
 import { CreateAssertionModal } from '@/components/modals/CreateAssertionModal';
+import ChallengeModal from '@/components/modals/ChallengeModal';
 import { isWhitelisted } from '@/lib/whitelist';
 
 interface EventDetailClientProps {
@@ -273,6 +274,7 @@ export default function EventDetailClient({ feed }: EventDetailClientProps) {
   const [activeAnnotationTab, setActiveAnnotationTab] = useState<'all' | 'human' | 'agent'>('all');
   const [isBoostModalOpen, setIsBoostModalOpen] = useState(false);
   const [isCreateAssertionModalOpen, setIsCreateAssertionModalOpen] = useState(false);
+  const [isChallengeModalOpen, setIsChallengeModalOpen] = useState(false);
   const { isConnected, address } = useAccount();
   const { chain } = useNetwork();
   const isWrongChain = isConnected && chain?.id !== 84532;
@@ -609,10 +611,10 @@ export default function EventDetailClient({ feed }: EventDetailClientProps) {
               <div className="flex items-center gap-2">
                 {isConnected && !isWrongChain ? (
                   <>
-                    {/* Sprint 2.3: Active Challenge Button */}
+                    {/* Sprint 2.4.2: Active Challenge Button */}
                     <button 
                       className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-orange-400 bg-white/5 hover:bg-orange-500/10 rounded-lg transition-colors"
-                      onClick={() => toast('Challenge feature coming in Sprint 2.5')}
+                      onClick={() => setIsChallengeModalOpen(true)}
                     >
                       <AlertTriangle className="w-4 h-4" />
                       Challenge
@@ -714,6 +716,27 @@ export default function EventDetailClient({ feed }: EventDetailClientProps) {
         eventTitle={feed.title}
         isOpen={isCreateAssertionModalOpen}
         onClose={() => setIsCreateAssertionModalOpen(false)}
+        onSuccess={() => window.location.reload()}
+      />
+
+      {/* Challenge Modal - Sprint 2.4.2 */}
+      <ChallengeModal
+        assertion={feed.assertion ? {
+          assertionId: feed.assertion.assertionId,
+          eventId: parseInt(feed.id) || 0,
+          asserter: feed.assertion.asserter,
+          type: feed.assertion.type,
+          stakeAmount: feed.assertion.stakeAmount
+        } : {
+          id: parseInt(feed.id) || 0,
+          eventId: parseInt(feed.id) || 0,
+          asserter: feed.author || feed.source || '0x0000000000000000000000000000000000000000',
+          type: 0,
+          claimHash: feed.proof_tags?.[0]?.value || '0x0000000000000000000000000000000000000000000000000000000000000000',
+          stakeAmount: '0.01' // Default minimum stake
+        }}
+        isOpen={isChallengeModalOpen}
+        onClose={() => setIsChallengeModalOpen(false)}
         onSuccess={() => window.location.reload()}
       />
 

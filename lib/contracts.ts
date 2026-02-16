@@ -76,6 +76,12 @@ export interface CreateAssertionParams {
   stake: string; // in ETH, min 0.01
 }
 
+export interface ChallengeParams {
+  assertionId: number;
+  counterHash: string;
+  stake: string; // Must match the assertion stake
+}
+
 export function generateClaimHash(claim: {
   type: 'AGENT' | 'HUMAN';
   summary: string;
@@ -147,20 +153,25 @@ export async function createAssertion(
 }
 
 export async function challengeAssertion(
-  assertionId: number, 
-  counterHash: string, 
-  stake: string, 
+  params: ChallengeParams,
   signer: ethers.Signer,
   chainId: number = 84532
-) {
+): Promise<ethers.ContractTransaction> {
   const contractAddress = CONTRACTS[chainId as keyof typeof CONTRACTS]?.assertions;
   if (!contractAddress) {
     throw new Error(`No assertions contract for chain ${chainId}`);
   }
   
   const contract = new ethers.Contract(contractAddress, ASSERTIONS_ABI, signer);
-  const tx = await contract.challengeAssertion(assertionId, counterHash, { value: ethers.utils.parseEther(stake) });
-  return tx.wait();
+  const valueWei = ethers.utils.parseEther(params.stake);
+  
+  const tx = await contract.challengeAssertion(
+    params.assertionId,
+    params.counterHash,
+    { value: valueWei }
+  );
+  
+  return tx;
 }
 
 export async function resolveAssertion(
