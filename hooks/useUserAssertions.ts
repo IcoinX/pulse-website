@@ -51,7 +51,7 @@ export function useUserAssertions(walletAddress: string | null) {
             canonical_events(event_id, title),
             challenges(*)
           `)
-          .eq('asserter', walletAddress.toLowerCase())
+          .eq('asserter', walletAddress?.toLowerCase())
           .order('created_at', { ascending: false });
 
         if (supaError) throw supaError;
