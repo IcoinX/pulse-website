@@ -1,21 +1,15 @@
 import { Suspense } from 'react';
-import { fetchAllFeeds } from '@/lib/rss';
+import { ProtocolEvent } from '@/types';
+import { protocolEvents } from '@/lib/data';
 import HomeClient from './HomeClient';
 
 // ISR: Revalidate every 5 minutes
 export const revalidate = 300;
 
 export default async function Home() {
-  // Fetch feeds on the server
-  let feeds = [];
-  let error = null;
-
-  try {
-    feeds = await fetchAllFeeds();
-  } catch (err) {
-    console.error('Error fetching feeds:', err);
-    error = err instanceof Error ? err.message : 'Failed to fetch feeds';
-  }
+  // Use protocol-native mock data
+  let feeds: ProtocolEvent[] = protocolEvents;
+  let error: string | null = null;
 
   return (
     <Suspense fallback={

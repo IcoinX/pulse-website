@@ -2,21 +2,21 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Category, FeedItem } from '@/types';
+import { Category, ProtocolEvent } from '@/types';
 import Header from '@/components/Header';
 import FeedSection from '@/components/FeedSection';
 import Sidebar from '@/components/Sidebar';
-import { fetchAllFeeds } from '@/lib/rss';
+import { protocolEvents } from '@/lib/data';
 import toast from 'react-hot-toast';
 
 interface HomeClientProps {
-  initialFeeds: FeedItem[];
+  initialFeeds: ProtocolEvent[];
   error: string | null;
 }
 
 export default function HomeClient({ initialFeeds, error }: HomeClientProps) {
   const [activeCategory, setActiveCategory] = useState<Category>('all');
-  const [feeds, setFeeds] = useState<FeedItem[]>(initialFeeds);
+  const [feeds, setFeeds] = useState<ProtocolEvent[]>(initialFeeds.length > 0 ? initialFeeds : protocolEvents);
   const [isLoading, setIsLoading] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
 
@@ -31,8 +31,10 @@ export default function HomeClient({ initialFeeds, error }: HomeClientProps) {
   const refreshFeeds = useCallback(async () => {
     setIsLoading(true);
     try {
-      const newFeeds = await fetchAllFeeds();
-      setFeeds(newFeeds);
+      // In a real app, this would fetch from an API
+      // For now, we shuffle and use the mock data
+      const shuffled = [...protocolEvents].sort(() => Math.random() - 0.5);
+      setFeeds(shuffled);
       setLastUpdated(new Date());
     } catch (err) {
       console.error('Error refreshing feeds:', err);

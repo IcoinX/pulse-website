@@ -1,8 +1,20 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { trendingTopics, topAgents } from '@/lib/data';
-import { TrendingUp, Users, Activity, Clock } from 'lucide-react';
+import { trendingTopics, topAgents, protocolStats } from '@/lib/data';
+import { 
+  TrendingUp, 
+  Users, 
+  Activity, 
+  Clock, 
+  Shield, 
+  Flame, 
+  Zap,
+  CheckCircle,
+  AlertTriangle,
+  Timer,
+  Percent
+} from 'lucide-react';
 
 interface SidebarProps {
   lastUpdated?: Date;
@@ -32,11 +44,103 @@ export default function Sidebar({ lastUpdated }: SidebarProps) {
         </motion.div>
       )}
 
-      {/* Trending Topics */}
+      {/* Protocol Stats */}
       <motion.div 
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
+        className="bg-gradient-to-br from-purple-500/10 to-blue-500/10 rounded-xl p-5 border border-purple-500/20"
+      >
+        <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
+          <Activity className="w-5 h-5 mr-2 text-purple-400" />
+          Protocol Stats
+        </h3>
+        
+        <div className="space-y-3">
+          {/* Verified 24h */}
+          <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
+            <div className="flex items-center gap-2">
+              <CheckCircle className="w-4 h-4 text-green-400" />
+              <span className="text-sm text-gray-300">Verified (24h)</span>
+            </div>
+            <span className="text-lg font-bold text-white">
+              {protocolStats.verified_24h.toLocaleString()}
+            </span>
+          </div>
+
+          {/* Pending */}
+          <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
+            <div className="flex items-center gap-2">
+              <Clock className="w-4 h-4 text-gray-400" />
+              <span className="text-sm text-gray-300">Pending</span>
+            </div>
+            <span className="text-lg font-bold text-white">
+              {protocolStats.pending.toLocaleString()}
+            </span>
+          </div>
+
+          {/* Challenged */}
+          <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-orange-400" />
+              <span className="text-sm text-gray-300">Challenged</span>
+            </div>
+            <span className="text-lg font-bold text-white">
+              {protocolStats.challenged.toLocaleString()}
+            </span>
+          </div>
+
+          {/* Median Resolution Time */}
+          <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
+            <div className="flex items-center gap-2">
+              <Timer className="w-4 h-4 text-blue-400" />
+              <span className="text-sm text-gray-300">Median Resolution</span>
+            </div>
+            <span className="text-lg font-bold text-white">
+              {protocolStats.median_resolution_time}h
+            </span>
+          </div>
+
+          {/* Burn 24h */}
+          <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
+            <div className="flex items-center gap-2">
+              <Flame className="w-4 h-4 text-orange-500" />
+              <span className="text-sm text-gray-300">Burn (24h)</span>
+            </div>
+            <span className="text-lg font-bold text-orange-400">
+              {protocolStats.burn_24h.toLocaleString()}
+            </span>
+          </div>
+
+          {/* Emission 24h */}
+          <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
+            <div className="flex items-center gap-2">
+              <Zap className="w-4 h-4 text-yellow-400" />
+              <span className="text-sm text-gray-300">Emission (24h)</span>
+            </div>
+            <span className="text-lg font-bold text-yellow-400">
+              {protocolStats.emission_24h.toLocaleString()}
+            </span>
+          </div>
+
+          {/* Burn/Emission Ratio */}
+          <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
+            <div className="flex items-center gap-2">
+              <Percent className="w-4 h-4 text-purple-400" />
+              <span className="text-sm text-gray-300">Burn/Emission</span>
+            </div>
+            <span className="text-lg font-bold text-purple-400">
+              {protocolStats.burn_emission_ratio.toFixed(1)}x
+            </span>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* Trending Topics */}
+      <motion.div 
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
         className="bg-white/5 backdrop-blur-sm rounded-xl p-5 border border-white/10"
       >
         <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
@@ -69,16 +173,16 @@ export default function Sidebar({ lastUpdated }: SidebarProps) {
         </div>
       </motion.div>
 
-      {/* Top Agents */}
+      {/* Top Agents / Validators */}
       <motion.div 
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
+        transition={{ delay: 0.3 }}
         className="bg-white/5 backdrop-blur-sm rounded-xl p-5 border border-white/10"
       >
         <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
           <Users className="w-5 h-5 mr-2 text-blue-400" />
-          Top Agents
+          Top Validators
         </h3>
         <div className="space-y-3">
           {topAgents.map((agent, index) => (
@@ -102,39 +206,8 @@ export default function Sidebar({ lastUpdated }: SidebarProps) {
           ))}
         </div>
         <button className="w-full mt-4 py-2 text-sm text-purple-400 hover:text-purple-300 transition-colors">
-          View All Agents →
+          View All Validators →
         </button>
-      </motion.div>
-
-      {/* Stats Summary */}
-      <motion.div 
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3 }}
-        className="bg-gradient-to-br from-purple-500/10 to-blue-500/10 rounded-xl p-5 border border-purple-500/20"
-      >
-        <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
-          <Activity className="w-5 h-5 mr-2 text-green-400" />
-          Protocol Stats
-        </h3>
-        <div className="grid grid-cols-2 gap-4">
-          <div className="text-center p-3 bg-white/5 rounded-lg">
-            <p className="text-2xl font-bold text-white">8.2K</p>
-            <p className="text-xs text-gray-400">Events Verified</p>
-          </div>
-          <div className="text-center p-3 bg-white/5 rounded-lg">
-            <p className="text-2xl font-bold text-white">342</p>
-            <p className="text-xs text-gray-400">Active Agents</p>
-          </div>
-          <div className="text-center p-3 bg-white/5 rounded-lg">
-            <p className="text-2xl font-bold text-white">98.7%</p>
-            <p className="text-xs text-gray-400">Accuracy Rate</p>
-          </div>
-          <div className="text-center p-3 bg-white/5 rounded-lg">
-            <p className="text-2xl font-bold text-white">&lt;3s</p>
-            <p className="text-xs text-gray-400">Avg Response</p>
-          </div>
-        </div>
       </motion.div>
 
       {/* About */}
@@ -148,6 +221,7 @@ export default function Sidebar({ lastUpdated }: SidebarProps) {
         <p className="text-xs text-gray-400 leading-relaxed">
           Decentralized intelligence layer for the agent economy. 
           Real-time verification of events, news, and signals from trusted sources.
+          Stake PULSE to boost or challenge events.
         </p>
         <div className="mt-4 flex space-x-4">
           <a href="https://twitter.com/Clara_AGI2026" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white transition-colors">

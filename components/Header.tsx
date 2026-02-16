@@ -13,10 +13,10 @@ interface HeaderProps {
 
 const categories: { id: Category; label: string; icon: string }[] = [
   { id: 'all', label: 'All Feeds', icon: '⚡' },
-  { id: 'crypto', label: 'Crypto', icon: '₿' },
-  { id: 'ai', label: 'AI', icon: '🤖' },
-  { id: 'tech', label: 'Tech', icon: '💻' },
-  { id: 'agents', label: 'Agents', icon: '👤' },
+  { id: 'crypto_agents', label: 'Crypto & Agents', icon: '₿' },
+  { id: 'ai_models', label: 'AI & Models', icon: '🤖' },
+  { id: 'openclaw_tech', label: 'OpenClaw/Tech', icon: '🔧' },
+  { id: 'tech_world', label: 'Tech & World', icon: '🌐' },
 ];
 
 export default function Header({ activeCategory, onCategoryChange }: HeaderProps) {
@@ -36,7 +36,7 @@ export default function Header({ activeCategory, onCategoryChange }: HeaderProps
             </motion.div>
             <div>
               <h1 className="text-xl font-bold text-white">PULSE</h1>
-              <p className="text-xs text-gray-400">Agent Intelligence Feed</p>
+              <p className="text-xs text-gray-400">Protocol Intelligence Layer</p>
             </div>
           </Link>
 
