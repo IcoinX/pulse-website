@@ -1,9 +1,9 @@
-export const dynamic = 'force-dynamic';
-
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@supabase/supabase-js';
 import Header from '@/components/Header';
+
+export const dynamic = 'force-dynamic';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://plojsqsjykzqwdaolfpi.supabase.co';
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable_r61eP5kLy0S15KiUXr4x0g_Fh0368BQ';
