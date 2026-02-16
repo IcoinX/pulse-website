@@ -207,3 +207,140 @@ export interface FilterState {
   sort: SortOption;
   searchQuery: string;
 }
+
+// ============================================
+// AGENT SIGNAL NORMALIZER TYPES
+// ============================================
+
+// Standardized Agent Event Types from 3 sources
+export type AgentEventType = 
+  | 'AGENT_CREATED'      // on-chain: deploy, GitHub: new repo
+  | 'AGENT_UPDATED'      // GitHub: release, X: announcement
+  | 'AGENT_SIGNAL'       // X: official announcement
+  | 'AGENT_STAKED'       // on-chain: validator staked
+  | 'AGENT_SLASHED'      // on-chain: slashed/collusion
+  | 'AGENT_BOOSTED'      // on-chain: large boost
+  | 'AGENT_PROMOTED';    // on-chain: top validator
+
+// Source kinds for Agent Events
+export type AgentEventSourceKind = 'ONCHAIN' | 'GITHUB' | 'X';
+
+// Verification badge levels
+export type VerificationBadge = 'RAW' | 'CHECKED' | 'VERIFIED';
+
+// Agent Event Status
+export type AgentEventStatus = 'PENDING' | 'CHALLENGED' | 'VERIFIED' | 'REJECTED';
+
+// Source reference for Agent Events
+export interface AgentEventSource {
+  kind: AgentEventSourceKind;
+  ref: string;  // txHash, repo@tag, tweetId
+  url?: string;
+}
+
+// Standardized Agent Event (PULSE format)
+export interface AgentEvent {
+  id: string;
+  type: AgentEventType;
+  title: string;
+  timestamp: string;
+  channel: 'AGENTS';
+  status: AgentEventStatus;
+  verification: {
+    score: number;           // 0-100
+    badge: VerificationBadge;
+    sources: AgentEventSource[];
+  };
+  impact: {
+    market: number;          // 0-100
+    narrative: number;       // 0-100
+    tech: number;            // 0-100
+  };
+  economics?: {
+    boost?: number;
+    burnPct?: number;
+    stakeAmount?: string;
+  };
+  entities: {
+    agent: string;           // Agent name/handle
+    contract?: string;       // Contract address
+    chainId?: number;        // Chain ID (8453 for Base)
+    githubRepo?: string;     // GitHub repo full name
+    xHandle?: string;        // X/Twitter handle
+  };
+  // Additional metadata
+  metadata?: {
+    description?: string;
+    avatar?: string;         // Emoji or image URL
+    tags?: string[];
+    rank?: number;
+    previousRank?: number;
+  };
+}
+
+// GitHub Event Types
+export type GitHubSignalType = 'RepoCreated' | 'ReleasePublished' | 'MajorCommit';
+
+export interface GitHubSignal {
+  id: string;
+  type: GitHubSignalType;
+  repo: string;
+  owner: string;
+  description?: string;
+  url: string;
+  timestamp: string;
+  metadata?: {
+    stars?: number;
+    language?: string;
+    version?: string;        // For releases
+    commitMessage?: string;  // For commits
+  };
+}
+
+// X/Twitter Event Types
+export type XSignalType = 'OfficialAnnouncement';
+
+export interface XSignal {
+  id: string;
+  type: XSignalType;
+  tweetId: string;
+  authorHandle: string;
+  authorName: string;
+  content: string;
+  url: string;
+  timestamp: string;
+  metadata?: {
+    retweets?: number;
+    likes?: number;
+    replies?: number;
+    hashtags?: string[];
+    mentions?: string[];
+  };
+}
+
+// On-Chain Event Types (from existing indexer)
+export type OnChainSignalType = 
+  | 'AgentDeployed'
+  | 'ValidatorStaked'
+  | 'ValidatorUnstaked'
+  | 'Slashed'
+  | 'CollusionDetected'
+  | 'BoostEvent'
+  | 'GovernanceChange';
+
+export interface OnChainSignal {
+  id: string;
+  type: OnChainSignalType;
+  txHash: string;
+  blockNumber: number;
+  chainId: number;
+  timestamp: string;
+  contractAddress?: string;
+  agentName?: string;
+  metadata?: {
+    stakeAmount?: string;
+    boostAmount?: string;
+    reason?: string;
+    params?: Record<string, unknown>;
+  };
+}
