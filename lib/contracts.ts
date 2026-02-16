@@ -1,6 +1,8 @@
 import { ethers } from 'ethers';
 import { CONTRACTS } from './wallet';
 
+export { CONTRACTS };
+
 // ABIs minimaux (extraits des contrats déployés)
 export const REGISTRY_ABI = [
   "function registerEvent(bytes32 canonicalHash) returns (uint256 eventId)",

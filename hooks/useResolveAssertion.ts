@@ -34,7 +34,7 @@ export function useResolveAssertion() {
   const resolve = useCallback(async (assertionId: number, outcome: Outcome) => {
     const check = canResolve();
     if (!check.ok) {
-      setState({ status: 'error', error: check.reason });
+      setState({ status: 'error', error: check.reason || 'Cannot resolve' });
       return;
     }
 
