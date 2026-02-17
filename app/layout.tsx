@@ -1,7 +1,6 @@
 import './globals.css';
 import type { Metadata } from 'next';
 import { ThemeProvider } from '@/components/ThemeProvider';
-import { Web3Provider } from '@/components/Web3Provider';
 import { AuthProvider } from '@/hooks/useAuth';
 import { Toaster } from 'react-hot-toast';
 import { useEffect } from 'react';
@@ -59,9 +58,8 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="antialiased">
-        <Web3Provider>
-          <ThemeProvider>
-            <AuthProvider>
+        <ThemeProvider>
+          <AuthProvider>
               {children}
               <AuthToastListener />
               <Toaster 
@@ -89,7 +87,6 @@ export default function RootLayout({
               />
             </AuthProvider>
           </ThemeProvider>
-        </Web3Provider>
       </body>
     </html>
   );
