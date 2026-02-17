@@ -9,6 +9,45 @@
 
 const { createClient } = require('@supabase/supabase-js');
 const axios = require('axios');
+const fs = require('fs');
+const path = require('path');
+
+// Lock file to prevent parallel executions
+const LOCK_FILE = path.join(__dirname, '.worker.lock');
+
+// ============================================
+// LOCK MANAGEMENT
+// ============================================
+function acquireLock() {
+  try {
+    if (fs.existsSync(LOCK_FILE)) {
+      const lockTime = fs.statSync(LOCK_FILE).mtime;
+      const ageMs = Date.now() - lockTime.getTime();
+      // If lock is older than 5 minutes, it's stale
+      if (ageMs < 5 * 60 * 1000) {
+        console.log(`[${new Date().toISOString()}] Worker already running (lock age: ${Math.floor(ageMs/1000)}s), exiting`);
+        process.exit(0);
+      }
+      console.log(`[${new Date().toISOString()}] Stale lock detected (${Math.floor(ageMs/1000)}s), removing`);
+      fs.unlinkSync(LOCK_FILE);
+    }
+    fs.writeFileSync(LOCK_FILE, process.pid.toString());
+    return true;
+  } catch (err) {
+    console.error('Lock error:', err.message);
+    return false;
+  }
+}
+
+function releaseLock() {
+  try {
+    if (fs.existsSync(LOCK_FILE)) {
+      fs.unlinkSync(LOCK_FILE);
+    }
+  } catch (err) {
+    // Ignore release errors
+  }
+}
 
 // Config
 const SUPABASE_URL = process.env.SUPABASE_URL;
@@ -26,6 +65,11 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 // MAIN WORKER LOOP
 // ============================================
 async function runWorker() {
+  // Acquire lock to prevent parallel runs
+  if (!acquireLock()) {
+    process.exit(1);
+  }
+  
   console.log(`[${new Date().toISOString()}] F1 Worker starting...`);
   
   try {
@@ -50,8 +94,20 @@ async function runWorker() {
     
     console.log(`Processing ${notifications.length} notifications...`);
     
-    // Process each notification
+    // Process each notification with lock
     for (const notif of notifications) {
+      // Skip if already being processed (double-check)
+      const { data: current } = await supabase
+        .from('notifications')
+        .select('status')
+        .eq('id', notif.id)
+        .single();
+      
+      if (current && current.status === 'sending') {
+        console.log(`  Skipping #${notif.id} (already being processed)`);
+        continue;
+      }
+      
       await processNotification(notif);
     }
     
@@ -59,8 +115,11 @@ async function runWorker() {
     
   } catch (err) {
     console.error('Worker error:', err.message);
+    releaseLock();
     process.exit(1);
   }
+  
+  releaseLock();
 }
 
 // ============================================
@@ -81,8 +140,9 @@ async function processNotification(notif) {
   
   try {
     // Route by channel
+    let messageId = null;
     if (notif.channel === 'telegram') {
-      await sendTelegram(notif);
+      messageId = await sendTelegram(notif);
     } else if (notif.channel === 'discord') {
       await sendDiscord(notif);
     } else if (notif.channel === 'email') {
@@ -91,14 +151,19 @@ async function processNotification(notif) {
       throw new Error(`Unknown channel: ${notif.channel}`);
     }
     
-    // Mark as sent
+    // Mark as sent (include message_id if available)
+    const updateData = {
+      status: 'sent',
+      sent_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+    if (messageId) {
+      updateData.telegram_message_id = messageId;
+    }
+    
     await supabase
       .from('notifications')
-      .update({
-        status: 'sent',
-        sent_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
+      .update(updateData)
       .eq('id', notif.id);
     
     console.log(`    ✅ Sent successfully`);
@@ -111,8 +176,15 @@ async function processNotification(notif) {
 
 // ============================================
 // TELEGRAM DELIVERY
+// Returns: message_id (string) or null
 // ============================================
 async function sendTelegram(notif) {
+  // Skip if already sent (idempotence check)
+  if (notif.telegram_message_id) {
+    console.log(`    ⚠️  Already sent (msg_id: ${notif.telegram_message_id}), skipping`);
+    return notif.telegram_message_id;
+  }
+  
   // Get user's channel config
   const { data: pref } = await supabase
     .from('notification_preferences')
@@ -153,13 +225,7 @@ ${notif.url ? `📎 ${notif.url}` : ''}
     throw new Error(`Telegram API error: ${response.data.description}`);
   }
   
-  // Store message ID for potential edits/deletion
-  await supabase
-    .from('notifications')
-    .update({
-      telegram_message_id: response.data.result.message_id.toString()
-    })
-    .eq('id', notif.id);
+  return response.data.result.message_id.toString();
 }
 
 // ============================================
@@ -272,10 +338,15 @@ async function healthCheck() {
 // RUN
 // ============================================
 if (require.main === module) {
+  // Cleanup on exit
+  process.on('SIGINT', () => { releaseLock(); process.exit(0); });
+  process.on('SIGTERM', () => { releaseLock(); process.exit(0); });
+  
   runWorker().then(() => {
     process.exit(0);
   }).catch(err => {
     console.error('Fatal error:', err);
+    releaseLock();
     process.exit(1);
   });
 }

@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
+import ConnectButton from './ConnectButton';
 
 interface HeaderProps {
   activeTab?: string;
@@ -39,19 +40,22 @@ export default function Header({ activeTab = 'all', onTabChange }: HeaderProps) 
           justifyContent: 'space-between',
           marginBottom: 16
         }}>
-          <Link href="/" style={{ textDecoration: 'none' }}>
-            <h1 style={{ 
-              margin: 0, 
-              fontSize: 24, 
-              fontWeight: 700,
-              background: 'linear-gradient(90deg, #a855f7, #ec4899)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent'
-            }}>
-              PULSE
-            </h1>
-          </Link>
-          
+          <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
+            <Link href="/" style={{ textDecoration: 'none' }}>
+              <h1 style={{
+                margin: 0,
+                fontSize: 24,
+                fontWeight: 700,
+                background: 'linear-gradient(90deg, #a855f7, #ec4899)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent'
+              }}>
+                PULSE
+              </h1>
+            </Link>
+            <ConnectButton />
+          </div>
+
           {/* Secondary nav */}
           <nav style={{ display: 'flex', gap: 4 }}>
             {[
