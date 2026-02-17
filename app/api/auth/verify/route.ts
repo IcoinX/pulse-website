@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { verifyMessage } from 'viem';
+import { ethers } from 'ethers';
 import { jwtSign } from '@/lib/jwt';
 
 const supabase = createClient(
@@ -38,17 +38,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Verify signature
+    // Verify signature using ethers
     const message = `Sign in to PULSE Protocol\n\nWallet: ${wallet_address}\nNonce: ${nonce}\n\nThis signature proves ownership of your wallet.`;
     
     try {
-      const isValid = await verifyMessage({
-        address: wallet_address as `0x${string}`,
-        message,
-        signature: signature as `0x${string}`
-      });
-
-      if (!isValid) {
+      // Recover address from signature
+      const recoveredAddress = ethers.utils.verifyMessage(message, signature);
+      
+      if (recoveredAddress.toLowerCase() !== normalizedAddress) {
         return NextResponse.json(
           { error: 'Invalid signature' },
           { status: 401 }
