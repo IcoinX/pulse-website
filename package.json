@@ -9,7 +9,6 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@rainbow-me/rainbowkit": "^1.2.0",
     "@supabase/supabase-js": "^2.38.0",
     "axios": "^1.13.5",
     "date-fns": "^4.1.0",
@@ -24,7 +23,6 @@
     "react-dom": "^18.2.0",
     "react-hot-toast": "^2.6.0",
     "viem": "^1.21.4",
-    "wagmi": "^1.4.0",
     "xml2js": "^0.6.2"
   },
   "devDependencies": {
