@@ -711,9 +711,6 @@ export default function FeedCard({ item, index = 0 }: FeedCardProps) {
               )}
             </>
           ) : (
-              />
-            </>
-          ) : (
             <>
               {/* Ghost Actions when not connected */}
               <GhostActionButton 
