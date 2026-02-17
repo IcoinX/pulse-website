@@ -1,4 +1,4 @@
-import { SignJWT, jwtVerify } from 'jose';
+import { SignJWT, jwtVerify as joseJwtVerify } from 'jose';
 
 const JWT_SECRET = new TextEncoder().encode(
   process.env.JWT_SECRET || 'fallback-secret-change-in-production'
@@ -18,6 +18,6 @@ export async function jwtSign(payload: JWTPayload): Promise<string> {
 }
 
 export async function jwtVerify(token: string): Promise<JWTPayload> {
-  const { payload } = await jwtVerify(token, JWT_SECRET);
+  const { payload } = await joseJwtVerify(token, JWT_SECRET);
   return payload as JWTPayload;
 }
