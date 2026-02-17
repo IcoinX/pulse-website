@@ -7,8 +7,14 @@ interface HeaderProps {
   onTabChange?: (tab: string) => void;
 }
 
-export default function Header({ activeTab, onTabChange }: HeaderProps) {
-  const tabs = ['All', 'Crypto', 'AI', 'Tech', 'Agents'];
+export default function Header({ activeTab = 'all', onTabChange }: HeaderProps) {
+  const tabs = [
+    { id: 'all', label: 'All' },
+    { id: 'crypto', label: 'Crypto' },
+    { id: 'ai', label: 'AI' },
+    { id: 'tech', label: 'Tech' },
+    { id: 'agents', label: 'Agents' }
+  ];
   
   return (
     <header style={{ 
@@ -36,40 +42,41 @@ export default function Header({ activeTab, onTabChange }: HeaderProps) {
           </h1>
         </Link>
         
-        <nav style={{ display: 'flex', gap: 24 }}>
+        <nav style={{ display: 'flex', gap: 8 }}>
           {onTabChange ? (
-            // Mode avec handler (Client Component)
             tabs.map((tab) => (
               <button
-                key={tab}
-                onClick={() => onTabChange(tab.toLowerCase())}
+                key={tab.id}
+                onClick={() => onTabChange(tab.id)}
                 style={{ 
-                  color: activeTab === tab.toLowerCase() ? '#fff' : '#888', 
-                  background: 'none',
-                  border: 'none',
+                  color: activeTab === tab.id ? '#fff' : '#888', 
+                  background: activeTab === tab.id ? '#222' : 'transparent',
+                  border: '1px solid ' + (activeTab === tab.id ? '#444' : 'transparent'),
+                  borderRadius: 6,
                   cursor: 'pointer',
                   fontSize: 14,
                   fontWeight: 500,
-                  padding: 0
+                  padding: '8px 16px',
+                  transition: 'all 0.2s'
                 }}
               >
-                {tab}
+                {tab.label}
               </button>
             ))
           ) : (
-            // Mode simple (liens)
             tabs.map((tab) => (
               <Link 
-                key={tab}
-                href={`/?category=${tab.toLowerCase()}`}
+                key={tab.id}
+                href={tab.id === 'all' ? '/' : `/?category=${tab.id}`}
                 style={{ 
                   color: '#888', 
                   textDecoration: 'none',
                   fontSize: 14,
-                  fontWeight: 500
+                  fontWeight: 500,
+                  padding: '8px 16px'
                 }}
               >
-                {tab}
+                {tab.label}
               </Link>
             ))
           )}

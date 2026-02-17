@@ -9,16 +9,39 @@ const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-export default async function Home() {
+interface PageProps {
+  searchParams: { category?: string };
+}
+
+export default async function Home({ searchParams }: PageProps) {
+  const category = searchParams.category || 'all';
+  
   let events: any[] = [];
   let error: string | null = null;
 
   try {
-    const { data, error: supaError } = await supabase
+    let query = supabase
       .from('events')
       .select('*')
       .order('created_at', { ascending: false })
       .limit(50);
+    
+    // Filter by category if specified
+    if (category !== 'all') {
+      const categoryMap: Record<string, string[]> = {
+        'crypto': ['ONCHAIN', 'CRYPTO'],
+        'ai': ['AGENT', 'AI', 'MEDIA'],
+        'tech': ['GITHUB', 'TECH'],
+        'agents': ['AGENT']
+      };
+      
+      const sourceTypes = categoryMap[category];
+      if (sourceTypes) {
+        query = query.in('source_type', sourceTypes);
+      }
+    }
+    
+    const { data, error: supaError } = await query;
     
     if (supaError) {
       error = supaError.message;
@@ -31,7 +54,7 @@ export default async function Home() {
 
   return (
     <div style={{ minHeight: '100vh', background: '#000', color: '#fff' }}>
-      <Header />
+      <Header activeTab={category} />
       
       <main style={{ maxWidth: 1400, margin: '0 auto', padding: '32px 24px' }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 32 }}>
@@ -42,7 +65,7 @@ export default async function Home() {
                 Latest Intelligence
               </h2>
               <p style={{ margin: 0, color: '#666', fontSize: 14 }}>
-                {events.length} events tracked
+                {events.length} events {category !== 'all' ? `in ${category}` : 'tracked'}
               </p>
             </div>
             
@@ -67,7 +90,7 @@ export default async function Home() {
                   border: '2px dashed #222',
                   borderRadius: 12
                 }}>
-                  <p>No events found.</p>
+                  <p>No events found {category !== 'all' ? `in ${category}` : ''}.</p>
                 </div>
               ) : (
                 events.map((event) => (
@@ -94,21 +117,20 @@ export default async function Home() {
                   <span style={{ fontWeight: 600 }}>{events.length}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#666', fontSize: 14 }}>Filter</span>
+                  <span style={{ color: '#a855f7', fontSize: 14, textTransform: 'capitalize' }}>
+                    {category}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ color: '#666', fontSize: 14 }}>Status</span>
-                  <span style={{ color: '#fbbf24', fontSize: 14 }}>Live</span>
+                  <span style={{ color: '#34d399', fontSize: 14 }}>Live</span>
                 </div>
               </div>
             </div>
           </aside>
         </div>
       </main>
-      
-      {/* Debug footer (hidden in prod) */}
-      {process.env.NEXT_PUBLIC_DEBUG === 'true' && (
-        <footer style={{ padding: 16, borderTop: '1px solid #222', fontSize: 12, color: '#444' }}>
-          Build: 2026-02-17_0045Z_PROD_V1
-        </footer>
-      )}
     </div>
   );
 }
