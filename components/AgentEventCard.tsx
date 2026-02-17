@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { useAccount } from 'wagmi';
+import { useAuth } from '@/hooks/useAuth';
 import { AgentEvent, AgentEventType, AgentEventSourceKind, VerificationStatus } from '@/types';
 import { 
   formatTimeAgo 
@@ -471,7 +471,7 @@ export default function AgentEventCard({ event, index = 0 }: AgentEventCardProps
 function AgentEventCardActions({ event }: { event: AgentEvent }) {
   const [isBoostModalOpen, setIsBoostModalOpen] = useState(false);
   const [isAssertionModalOpen, setIsAssertionModalOpen] = useState(false);
-  const { isConnected } = useAccount();
+  const { isConnected } = useAuth();
 
   const handleBoost = (e: React.MouseEvent) => {
     e.preventDefault();

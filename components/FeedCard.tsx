@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useAccount, useNetwork } from 'wagmi';
+import { useAuth } from '@/hooks/useAuth';
 import { ProtocolEvent, SourceType, Evidence, VerificationStatus } from '@/types';
 import { 
   formatTimeAgo, 
@@ -486,9 +486,8 @@ export default function FeedCard({ item, index = 0 }: FeedCardProps) {
   const [isEvidenceOpen, setIsEvidenceOpen] = useState(false);
   const [isBoostModalOpen, setIsBoostModalOpen] = useState(false);
   const [isAssertionModalOpen, setIsAssertionModalOpen] = useState(false);
-  const { isConnected, address } = useAccount();
-  const { chain } = useNetwork();
-  const isWrongChain = isConnected && chain?.id !== 84532;
+  const { isConnected, user } = useAuth();
+  const address = user?.wallet_address;
   const whitelisted = isWhitelisted(address);
   const totalImpact = Math.round((item.impact.market + item.impact.narrative + item.impact.tech) / 3);
 
@@ -664,7 +663,7 @@ export default function FeedCard({ item, index = 0 }: FeedCardProps) {
             Open
           </Link>
 
-          {isConnected && !isWrongChain ? (
+          {isConnected ? (
             <>
               {/* Challenge Button - Active when connected */}
               <ActionButton 
@@ -711,28 +710,7 @@ export default function FeedCard({ item, index = 0 }: FeedCardProps) {
                 />
               )}
             </>
-          ) : isConnected && isWrongChain ? (
-            <>
-              {/* Wrong Chain State */}
-              <GhostActionButton 
-                icon={AlertTriangle}
-                label="Challenge"
-                tooltip="Switch to Base Sepolia"
-                colorClass="text-orange-400"
-              />
-
-              <GhostActionButton 
-                icon={ChevronUp}
-                label="Boost"
-                tooltip="Switch to Base Sepolia"
-                colorClass="text-green-400"
-              />
-
-              <GhostActionButton 
-                icon={Shield}
-                label="Add Assertion"
-                tooltip="Switch to Base Sepolia"
-                colorClass="text-blue-400"
+          ) : (
               />
             </>
           ) : (
