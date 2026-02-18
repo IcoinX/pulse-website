@@ -1,163 +1,123 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
-// EIP-1193 Provider type
-export interface Eip1193Provider {
+// EIP-1193 Provider
+interface EIP1193Provider {
   request: (args: { method: string; params?: any[] }) => Promise<any>;
   on?: (event: string, handler: (...args: any[]) => void) => void;
   removeListener?: (event: string, handler: (...args: any[]) => void) => void;
-  isMetaMask?: boolean;
-  isPhantom?: boolean;
-  isCoinbaseWallet?: boolean;
-  providers?: Eip1193Provider[];
-  rdns?: string;
 }
 
-// Get all injected providers
-export function getInjectedProviders(): Eip1193Provider[] {
-  if (typeof window === 'undefined') return [];
-  
-  const eth = (window as any).ethereum as Eip1193Provider | undefined;
-  if (!eth) return [];
-  
-  // Use providers array if available (EIP-5749), otherwise wrap single provider
-  const ps = Array.isArray(eth.providers) && eth.providers.length > 0
-    ? eth.providers
-    : [eth];
-  
-  // Deduplicate
-  return Array.from(new Set(ps));
-}
-
-// Get MetaMask provider specifically
-export function getMetaMaskProvider(): Eip1193Provider | null {
-  const ps = getInjectedProviders();
-  // MetaMask must be isMetaMask=true AND not Phantom
-  return ps.find(p => p.isMetaMask && !p.isPhantom) ?? 
-         ps.find(p => p.isMetaMask) ?? 
-         null;
-}
-
-// Get Phantom provider specifically
-export function getPhantomProvider(): Eip1193Provider | null {
-  const ps = getInjectedProviders();
-  return ps.find(p => (p as any).isPhantom) ?? null;
-}
-
-// Get Coinbase provider
-export function getCoinbaseProvider(): Eip1193Provider | null {
-  const ps = getInjectedProviders();
-  return ps.find(p => p.isCoinbaseWallet) ?? null;
+// EIP-6963 Provider Detail
+interface EIP6963ProviderDetail {
+  info: {
+    uuid: string;
+    name: string;
+    icon: string;
+    rdns: string; // e.g., "io.metamask", "app.phantom"
+  };
+  provider: EIP1193Provider;
 }
 
 interface Wallet {
   id: string;
   name: string;
   icon: string;
-  provider: Eip1193Provider;
+  rdns: string;
+  provider: EIP1193Provider;
 }
 
-// Detect all available wallets
-function detectAllWallets(): Wallet[] {
-  const wallets: Wallet[] = [];
-  
-  // Get specific providers
-  const mm = getMetaMaskProvider();
-  const phantom = getPhantomProvider();
-  const coinbase = getCoinbaseProvider();
-  
-  if (mm) {
-    wallets.push({ id: 'metamask', name: 'MetaMask', icon: '🦊', provider: mm });
-  }
-  
-  if (phantom) {
-    wallets.push({ id: 'phantom', name: 'Phantom', icon: '👻', provider: phantom });
-  }
-  
-  if (coinbase) {
-    wallets.push({ id: 'coinbase', name: 'Coinbase', icon: '🔵', provider: coinbase });
-  }
-  
-  return wallets;
-}
+// Hook for EIP-6963 provider discovery
+function useEip6963Providers() {
+  const [providers, setProviders] = useState<EIP6963ProviderDetail[]>([]);
+  const [isReady, setIsReady] = useState(false);
 
-// Connect with specific provider
-async function connectWithProvider(provider: Eip1193Provider): Promise<string | undefined> {
-  const accounts = await provider.request({ method: 'eth_requestAccounts' });
-  return accounts?.[0];
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const seen = new Map<string, EIP6963ProviderDetail>();
+
+    function onAnnounce(event: any) {
+      const detail = event.detail as EIP6963ProviderDetail;
+      if (!detail?.info?.rdns || !detail?.provider) return;
+      
+      console.log('[EIP-6963] Provider announced:', detail.info.rdns, detail.info.name);
+      
+      if (!seen.has(detail.info.rdns)) {
+        seen.set(detail.info.rdns, detail);
+        setProviders(Array.from(seen.values()));
+      }
+    }
+
+    // Listen for provider announcements
+    window.addEventListener('eip6963:announceProvider', onAnnounce);
+
+    // Request providers to announce themselves
+    window.dispatchEvent(new Event('eip6963:requestProvider'));
+
+    // Fallback: if no EIP-6963 providers, try legacy injection
+    const fallbackTimer = setTimeout(() => {
+      if (seen.size === 0) {
+        console.log('[EIP-6963] No providers announced, trying legacy...');
+        
+        const eth = (window as any).ethereum;
+        if (eth?.request) {
+          // Try to detect by specific properties
+          let name = 'Injected Wallet';
+          let rdns = 'injected';
+          let icon = '💼';
+          
+          if (eth.isMetaMask && !eth.isPhantom) {
+            name = 'MetaMask';
+            rdns = 'io.metamask';
+            icon = '🦊';
+          } else if (eth.isPhantom) {
+            name = 'Phantom';
+            rdns = 'app.phantom';
+            icon = '👻';
+          } else if (eth.isCoinbaseWallet) {
+            name = 'Coinbase';
+            rdns = 'com.coinbase.wallet';
+            icon = '🔵';
+          }
+          
+          const legacyProvider: EIP6963ProviderDetail = {
+            info: { uuid: 'legacy', name, icon, rdns },
+            provider: eth
+          };
+          
+          seen.set(rdns, legacyProvider);
+          setProviders([legacyProvider]);
+        }
+      }
+      setIsReady(true);
+    }, 500);
+
+    return () => {
+      clearTimeout(fallbackTimer);
+      window.removeEventListener('eip6963:announceProvider', onAnnounce);
+    };
+  }, []);
+
+  return { providers, isReady };
 }
 
 export default function ConnectButton() {
   const [showModal, setShowModal] = useState(false);
-  const [wallets, setWallets] = useState<Wallet[]>([]);
   const [connected, setConnected] = useState(false);
   const [address, setAddress] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [checked, setChecked] = useState(false);
-  const detectionRef = useRef<{ attempted: boolean; interval?: NodeJS.Timeout }>({ attempted: false });
+  const { providers, isReady } = useEip6963Providers();
 
-  const detectWallets = useCallback(() => {
-    const detected = detectAllWallets();
-    setWallets(detected);
-    
-    if (detected.length > 0 || detectionRef.current.attempted) {
-      setChecked(true);
-      if (detectionRef.current.interval) {
-        clearInterval(detectionRef.current.interval);
-        detectionRef.current.interval = undefined;
-      }
-    }
-    detectionRef.current.attempted = true;
-  }, []);
-
-  // Event-based detection
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    
-    detectWallets();
-    
-    const handleEthereumInitialized = () => {
-      console.log('[Wallet] ethereum#initialized event received');
-      detectWallets();
-    };
-    
-    window.addEventListener('ethereum#initialized', handleEthereumInitialized, { once: true });
-    
-    return () => {
-      window.removeEventListener('ethereum#initialized', handleEthereumInitialized);
-    };
-  }, [detectWallets]);
-
-  // Fallback polling
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    if (detectionRef.current.interval) return;
-    
-    if (wallets.length === 0 && !checked) {
-      const startTime = Date.now();
-      const maxDuration = 3000;
-      
-      detectionRef.current.interval = setInterval(() => {
-        detectWallets();
-        
-        if (Date.now() - startTime > maxDuration) {
-          if (detectionRef.current.interval) {
-            clearInterval(detectionRef.current.interval);
-            detectionRef.current.interval = undefined;
-          }
-          setChecked(true);
-        }
-      }, 100);
-      
-      return () => {
-        if (detectionRef.current.interval) {
-          clearInterval(detectionRef.current.interval);
-          detectionRef.current.interval = undefined;
-        }
-      };
-    }
-  }, [wallets.length, checked, detectWallets]);
+  // Convert providers to wallet list
+  const wallets: Wallet[] = providers.map(p => ({
+    id: p.info.rdns,
+    name: p.info.name,
+    icon: p.info.icon,
+    rdns: p.info.rdns,
+    provider: p.provider
+  }));
 
   // Check if already connected
   useEffect(() => {
@@ -170,24 +130,31 @@ export default function ConnectButton() {
   }, []);
 
   const handleConnect = async (wallet: Wallet) => {
+    console.log('[Connect] Attempting to connect with:', wallet.rdns, wallet.name);
     setLoading(true);
+    
     try {
-      // CRITICAL: Use the SPECIFIC provider, not window.ethereum
-      const account = await connectWithProvider(wallet.provider);
-      if (account) {
-        setAddress(account);
+      // CRITICAL: Use the SPECIFIC provider from EIP-6963
+      const accounts = await wallet.provider.request({ 
+        method: 'eth_requestAccounts' 
+      });
+      
+      console.log('[Connect] Got accounts:', accounts);
+      
+      if (accounts && accounts[0]) {
+        setAddress(accounts[0]);
         setConnected(true);
         setShowModal(false);
-        await authenticate(account, wallet.provider);
+        await authenticate(accounts[0], wallet.provider);
       }
     } catch (err) {
-      console.error('Connection error:', err);
+      console.error('[Connect] Error:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  const authenticate = async (walletAddress: string, provider: Eip1193Provider) => {
+  const authenticate = async (walletAddress: string, provider: EIP1193Provider) => {
     try {
       const nonceRes = await fetch('/api/auth/nonce', {
         method: 'POST',
@@ -200,7 +167,6 @@ export default function ConnectButton() {
       
       const message = `Sign in to PULSE Protocol\n\nWallet: ${walletAddress}\nNonce: ${nonce}\n\nThis signature proves ownership of your wallet.`;
       
-      // CRITICAL: Use the SPECIFIC provider for signing too
       const signature = await provider.request({
         method: 'personal_sign',
         params: [message, walletAddress]
@@ -273,13 +239,13 @@ export default function ConnectButton() {
                   >
                     <span style={{ fontSize: '24px' }}>{wallet.icon}</span>
                     <span style={{ color: '#fff', fontSize: '16px' }}>{wallet.name}</span>
-                    <span style={{ marginLeft: 'auto', fontSize: '12px', color: '#22C55E', background: 'rgba(34, 197, 94, 0.1)', padding: '4px 8px', borderRadius: '4px' }}>
-                      {loading ? '...' : 'Connect'}
+                    <span style={{ marginLeft: 'auto', fontSize: '10px', color: '#666' }}>
+                      {wallet.rdns}
                     </span>
                   </button>
                 ))}
               </div>
-            ) : checked ? (
+            ) : isReady ? (
               <div style={{ textAlign: 'center', padding: '20px' }}>
                 <p style={{ color: '#888', marginBottom: '16px' }}>No wallet detected</p>
                 <a href="https://metamask.io/download/" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', padding: '10px 20px', background: '#2563EB', color: '#fff', borderRadius: '8px', textDecoration: 'none', fontSize: '14px' }}>
@@ -288,7 +254,7 @@ export default function ConnectButton() {
               </div>
             ) : (
               <div style={{ textAlign: 'center', padding: '20px' }}>
-                <p style={{ color: '#666' }}>Checking for wallets...</p>
+                <p style={{ color: '#666' }}>Discovering wallets...</p>
               </div>
             )}
           </div>
