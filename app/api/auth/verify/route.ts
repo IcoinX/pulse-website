@@ -69,10 +69,10 @@ export async function POST(req: NextRequest) {
     const { data: user, error: userError } = await supabase
       .from('users')
       .upsert({
-        wallet_address: normalizedAddress,
+        address: normalizedAddress,
         last_seen_at: new Date().toISOString()
       }, {
-        onConflict: 'wallet_address',
+        onConflict: 'address',
         ignoreDuplicates: false
       })
       .select()
@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
     if (userError) {
       console.error('User creation error:', userError);
       return NextResponse.json(
-        { error: 'Failed to create user' },
+        { error: 'Failed to create user', details: userError.message },
         { status: 500 }
       );
     }
@@ -96,7 +96,7 @@ export async function POST(req: NextRequest) {
       token,
       user: {
         id: user.id,
-        wallet_address: user.wallet_address
+        wallet_address: user.address
       }
     });
 

@@ -1,6 +1,9 @@
 -- Migration 005: Login utilisateur (wallet)
 -- Scope MVP: identité minimale, zéro friction
 
+-- Drop existing table if exists with wrong structure
+DROP TABLE IF EXISTS users CASCADE;
+
 CREATE TABLE users (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   wallet_address TEXT NOT NULL UNIQUE,
