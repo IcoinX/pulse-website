@@ -9,6 +9,7 @@ interface TrendingItem {
   score: number;
   rank: number;
   ageBadge: string;
+  ageHours: number;
   created_at: string;
   verification_status: string;
   verification_reason?: string;
