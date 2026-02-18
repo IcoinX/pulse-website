@@ -114,7 +114,7 @@ export default function HotRightNow() {
           <p style={{ margin: 0, fontSize: 12, color: '#555' }}>
             Need at least 3 verified events in the last 7 days.
           </p>
-          {meta && (
+          {meta?.minRequired !== undefined && (
             <p style={{ margin: '8px 0 0 0', fontSize: 11, color: '#444' }}>
               Currently: {meta.count} / {meta.minRequired} required
             </p>
