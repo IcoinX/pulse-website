@@ -14,6 +14,14 @@ const SOURCE_WEIGHTS: Record<string, number> = {
   'MEDIA': 40
 };
 
+// Origin bonuses (platform quality signal)
+const ORIGIN_BONUSES: Record<string, number> = {
+  'VIRTUALS': 30,  // Most selective, highest quality
+  'BANKR': 25,     // Financial agents, serious builders
+  'CLANKER': 20,   // Volume + experimentation
+  'NATIVE': 10     // PULSE native agents
+};
+
 // Minimum items threshold (anti-n'importe-quoi rule)
 const MIN_ITEMS = 3;
 const WINDOW_HOURS = 168; // 7 days
@@ -68,11 +76,14 @@ export async function GET() {
       // Source weight (default 40 if unknown)
       const sourceScore = SOURCE_WEIGHTS[event.source_type] || 40;
       
+      // Origin bonus (platform credibility)
+      const originBonus = event.agent_origin ? (ORIGIN_BONUSES[event.agent_origin] || 0) : 0;
+      
       // Verification multiplier: VERIFIED = 1.0, PENDING = 0.6
       const verificationMultiplier = event.verification_status === 'VERIFIED' ? 1.0 : 0.6;
       
-      // Final score: recency 60% + source 40%, weighted by verification
-      const rawScore = (recencyScore * 0.6) + (sourceScore * 0.4);
+      // Final score: recency 50% + source 30% + origin 20%, weighted by verification
+      const rawScore = (recencyScore * 0.5) + (sourceScore * 0.3) + (originBonus * 0.2);
       const score = Math.round(rawScore * verificationMultiplier);
       
       // Determine age badge
@@ -83,9 +94,11 @@ export async function GET() {
         id: event.event_id.toString(),
         title: event.title,
         source_type: event.source_type,
+        agent_origin: event.agent_origin,
         score,
         recencyScore: Math.round(recencyScore),
         sourceScore,
+        originBonus,
         ageHours: Math.round(ageHours),
         ageBadge,
         created_at: event.created_at,

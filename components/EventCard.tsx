@@ -12,6 +12,7 @@ interface Event {
   verification_reason?: string;
   verified_at?: string;
   verified_by?: string;
+  agent_origin?: 'VIRTUALS' | 'BANKR' | 'CLANKER' | 'NATIVE' | null;
 }
 
 interface EventCardProps {
@@ -152,6 +153,26 @@ export default function EventCard({ event, showScore, score }: EventCardProps) {
           }}>
             {event.source_type}
           </span>
+          
+          {/* Origin Badge (Virtuals/Bankr/Clanker) */}
+          {event.agent_origin && (
+            <span style={{
+              padding: '4px 10px',
+              background: event.agent_origin === 'VIRTUALS' ? '#8b5cf622' : 
+                         event.agent_origin === 'BANKR' ? '#22c55e22' : 
+                         event.agent_origin === 'CLANKER' ? '#f59e0b22' : '#1a1a1a',
+              borderRadius: 6,
+              fontSize: 11,
+              fontWeight: 600,
+              color: event.agent_origin === 'VIRTUALS' ? '#8b5cf6' : 
+                     event.agent_origin === 'BANKR' ? '#22c55e' : 
+                     event.agent_origin === 'CLANKER' ? '#f59e0b' : '#888',
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px'
+            }}>
+              {event.agent_origin}
+            </span>
+          )}
           
           {/* Verification Badge */}
           <div style={{ display: 'inline-flex' }}>
