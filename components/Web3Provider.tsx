@@ -7,18 +7,18 @@ import {
   darkTheme,
 } from '@rainbow-me/rainbowkit';
 import {
-  rainbowWallet,
-  walletConnectWallet,
   metaMaskWallet,
   phantomWallet,
   coinbaseWallet,
+  rainbowWallet,
+  walletConnectWallet,
   braveWallet,
   injectedWallet,
 } from '@rainbow-me/rainbowkit/wallets';
-import { createConfig, WagmiProvider } from 'wagmi';
+import { createConfig, WagmiProvider, http } from 'wagmi';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
-// Define chains inline to avoid type issues
+// Define chains
 const base = {
   id: 8453,
   name: 'Base',
@@ -47,8 +47,7 @@ const baseSepolia = {
 
 const chains = [base, baseSepolia] as const;
 
-const projectId = 'PULSE_PROTOCOL_WALLET_CONNECT';
-
+// Configure wallets
 const connectors = connectorsForWallets(
   [
     {
@@ -69,22 +68,20 @@ const connectors = connectorsForWallets(
       ],
     },
   ],
-  {
+  { 
     appName: 'PULSE Protocol',
-    projectId,
+    projectId: 'PULSE_PROTOCOL_WALLET_CONNECT',
   }
 );
 
-import { http } from 'wagmi';
-
 const config = createConfig({
-  connectors,
   chains,
-  ssr: true,
+  connectors,
   transports: {
     [base.id]: http(),
     [baseSepolia.id]: http(),
   },
+  ssr: true,
 });
 
 const queryClient = new QueryClient();
