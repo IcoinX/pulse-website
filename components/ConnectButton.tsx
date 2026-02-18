@@ -15,58 +15,93 @@ export default function ConnectButton() {
   const [connected, setConnected] = useState(false);
   const [address, setAddress] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [checked, setChecked] = useState(false);
 
-  // Detect wallets on mount and when modal opens
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
+  // Detect wallets with retry mechanism
+  const detectWallets = useCallback(() => {
+    if (typeof window === 'undefined') return [];
     
     const w = window as any;
     const detected: Wallet[] = [];
     const seen = new Set<string>();
     
-    // Check EIP-5749 providers array
-    const providers = w.ethereum?.providers || [];
-    providers.forEach((p: any) => {
-      if (p.isMetaMask && !p.isPhantom && !seen.has('metamask')) {
-        detected.push({ id: 'metamask', name: 'MetaMask', icon: '🦊', provider: p });
-        seen.add('metamask');
-      } else if (p.isPhantom && !seen.has('phantom')) {
-        detected.push({ id: 'phantom', name: 'Phantom', icon: '👻', provider: p });
-        seen.add('phantom');
-      } else if (p.isCoinbaseWallet && !seen.has('coinbase')) {
-        detected.push({ id: 'coinbase', name: 'Coinbase', icon: '🔵', provider: p });
-        seen.add('coinbase');
-      }
-    });
+    // Check EIP-5749 providers array (standard for multiple wallets)
+    if (w.ethereum?.providers && Array.isArray(w.ethereum.providers)) {
+      w.ethereum.providers.forEach((p: any) => {
+        if (p.isMetaMask && !p.isPhantom && !seen.has('metamask')) {
+          detected.push({ id: 'metamask', name: 'MetaMask', icon: '🦊', provider: p });
+          seen.add('metamask');
+        } else if (p.isPhantom && !seen.has('phantom')) {
+          detected.push({ id: 'phantom', name: 'Phantom', icon: '👻', provider: p });
+          seen.add('phantom');
+        } else if (p.isCoinbaseWallet && !seen.has('coinbase')) {
+          detected.push({ id: 'coinbase', name: 'Coinbase', icon: '🔵', provider: p });
+          seen.add('coinbase');
+        }
+      });
+    }
     
-    // Check window.phantom.ethereum
+    // Check window.phantom.ethereum (Phantom's separate injection)
     if (w.phantom?.ethereum && !seen.has('phantom')) {
       detected.push({ id: 'phantom', name: 'Phantom', icon: '👻', provider: w.phantom.ethereum });
       seen.add('phantom');
     }
     
-    // Check main window.ethereum
-    if (w.ethereum && !seen.has('metamask') && w.ethereum.isMetaMask && !w.ethereum.isPhantom) {
-      detected.push({ id: 'metamask', name: 'MetaMask', icon: '🦊', provider: w.ethereum });
-      seen.add('metamask');
-    }
-    if (w.ethereum && !seen.has('phantom') && w.ethereum.isPhantom) {
-      detected.push({ id: 'phantom', name: 'Phantom', icon: '👻', provider: w.ethereum });
-      seen.add('phantom');
-    }
-    if (w.ethereum && !seen.has('coinbase') && w.ethereum.isCoinbaseWallet) {
-      detected.push({ id: 'coinbase', name: 'Coinbase', icon: '🔵', provider: w.ethereum });
-      seen.add('coinbase');
+    // Check main window.ethereum (could be any wallet)
+    if (w.ethereum && typeof w.ethereum === 'object') {
+      if (!seen.has('metamask') && w.ethereum.isMetaMask && !w.ethereum.isPhantom) {
+        detected.push({ id: 'metamask', name: 'MetaMask', icon: '🦊', provider: w.ethereum });
+        seen.add('metamask');
+      }
+      if (!seen.has('phantom') && w.ethereum.isPhantom) {
+        detected.push({ id: 'phantom', name: 'Phantom', icon: '👻', provider: w.ethereum });
+        seen.add('phantom');
+      }
+      if (!seen.has('coinbase') && w.ethereum.isCoinbaseWallet) {
+        detected.push({ id: 'coinbase', name: 'Coinbase', icon: '🔵', provider: w.ethereum });
+        seen.add('coinbase');
+      }
+      
+      // Generic ethereum provider (fallback)
+      if (detected.length === 0 && w.ethereum.request) {
+        detected.push({ id: 'injected', name: 'Injected Wallet', icon: '💼', provider: w.ethereum });
+      }
     }
     
-    setWallets(detected);
+    return detected;
+  }, []);
+
+  // Initial detection + retry
+  useEffect(() => {
+    let attempts = 0;
+    const maxAttempts = 5;
     
-    // Check if already connected
+    const tryDetect = () => {
+      const detected = detectWallets();
+      if (detected.length > 0 || attempts >= maxAttempts) {
+        setWallets(detected);
+        setChecked(true);
+      } else {
+        attempts++;
+        setTimeout(tryDetect, 500); // Retry every 500ms
+      }
+    };
+    
+    // Delay initial detection to let wallets inject
+    const timer = setTimeout(tryDetect, 300);
+    
+    return () => clearTimeout(timer);
+  }, [showModal, detectWallets]);
+
+  // Check if already connected
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const w = window as any;
     if (w.ethereum?.selectedAddress) {
       setAddress(w.ethereum.selectedAddress);
       setConnected(true);
     }
-  }, [showModal]);
+  }, []);
 
   const connect = async (wallet: Wallet) => {
     setLoading(true);
@@ -76,8 +111,6 @@ export default function ConnectButton() {
         setAddress(accounts[0]);
         setConnected(true);
         setShowModal(false);
-        
-        // Authenticate with backend
         await authenticate(accounts[0], wallet.provider);
       }
     } catch (err) {
@@ -89,7 +122,6 @@ export default function ConnectButton() {
 
   const authenticate = async (walletAddress: string, provider: any) => {
     try {
-      // Get nonce
       const nonceRes = await fetch('/api/auth/nonce', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -99,14 +131,12 @@ export default function ConnectButton() {
       if (!nonceRes.ok) throw new Error('Failed to get nonce');
       const { nonce } = await nonceRes.json();
       
-      // Sign message
       const message = `Sign in to PULSE Protocol\n\nWallet: ${walletAddress}\nNonce: ${nonce}\n\nThis signature proves ownership of your wallet.`;
       const signature = await provider.request({
         method: 'personal_sign',
         params: [message, walletAddress]
       });
       
-      // Verify
       const verifyRes = await fetch('/api/auth/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -180,12 +210,16 @@ export default function ConnectButton() {
                   </button>
                 ))}
               </div>
-            ) : (
+            ) : checked ? (
               <div style={{ textAlign: 'center', padding: '20px' }}>
                 <p style={{ color: '#888', marginBottom: '16px' }}>No wallet detected</p>
                 <a href="https://metamask.io/download/" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', padding: '10px 20px', background: '#2563EB', color: '#fff', borderRadius: '8px', textDecoration: 'none', fontSize: '14px' }}>
                   Install MetaMask
                 </a>
+              </div>
+            ) : (
+              <div style={{ textAlign: 'center', padding: '20px' }}>
+                <p style={{ color: '#666' }}>Checking for wallets...</p>
               </div>
             )}
           </div>
