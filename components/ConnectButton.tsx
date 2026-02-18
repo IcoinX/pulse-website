@@ -2,97 +2,90 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 
-interface Wallet {
-  id: string;
-  name: string;
-  icon: string;
-  provider: any;
-}
-
 // EIP-1193 Provider type
-interface Eip1193Provider {
+export interface Eip1193Provider {
   request: (args: { method: string; params?: any[] }) => Promise<any>;
   on?: (event: string, handler: (...args: any[]) => void) => void;
   removeListener?: (event: string, handler: (...args: any[]) => void) => void;
   isMetaMask?: boolean;
   isPhantom?: boolean;
   isCoinbaseWallet?: boolean;
-  rdns?: string;
   providers?: Eip1193Provider[];
+  rdns?: string;
 }
 
-// Get ALL injected providers (handles multi-wallet scenario)
-function getInjectedProviders(): Eip1193Provider[] {
+// Get all injected providers
+export function getInjectedProviders(): Eip1193Provider[] {
   if (typeof window === 'undefined') return [];
   
   const eth = (window as any).ethereum as Eip1193Provider | undefined;
   if (!eth) return [];
   
-  // EIP-5749: If providers array exists, use it (multiple wallets)
-  // Otherwise, wrap single provider in array
-  const providers = Array.isArray(eth.providers) && eth.providers.length > 0
+  // Use providers array if available (EIP-5749), otherwise wrap single provider
+  const ps = Array.isArray(eth.providers) && eth.providers.length > 0
     ? eth.providers
     : [eth];
   
-  // Deduplicate by checking object identity
-  const seen = new Set<Eip1193Provider>();
-  const unique: Eip1193Provider[] = [];
-  
-  for (const p of providers) {
-    // Also check window.phantom.ethereum separately
-    if ((window as any).phantom?.ethereum && p === (window as any).phantom.ethereum) {
-      if (!seen.has(p)) {
-        seen.add(p);
-        unique.push(p);
-      }
-      continue;
-    }
-    
-    if (!seen.has(p)) {
-      seen.add(p);
-      unique.push(p);
-    }
-  }
-  
-  // Add window.phantom.ethereum if not already included
-  const phantomProvider = (window as any).phantom?.ethereum;
-  if (phantomProvider && !seen.has(phantomProvider)) {
-    unique.push(phantomProvider);
-  }
-  
-  return unique;
+  // Deduplicate
+  return Array.from(new Set(ps));
 }
 
-// Detect all wallets from providers
+// Get MetaMask provider specifically
+export function getMetaMaskProvider(): Eip1193Provider | null {
+  const ps = getInjectedProviders();
+  // MetaMask must be isMetaMask=true AND not Phantom
+  return ps.find(p => p.isMetaMask && !p.isPhantom) ?? 
+         ps.find(p => p.isMetaMask) ?? 
+         null;
+}
+
+// Get Phantom provider specifically
+export function getPhantomProvider(): Eip1193Provider | null {
+  const ps = getInjectedProviders();
+  return ps.find(p => (p as any).isPhantom) ?? null;
+}
+
+// Get Coinbase provider
+export function getCoinbaseProvider(): Eip1193Provider | null {
+  const ps = getInjectedProviders();
+  return ps.find(p => p.isCoinbaseWallet) ?? null;
+}
+
+interface Wallet {
+  id: string;
+  name: string;
+  icon: string;
+  provider: Eip1193Provider;
+}
+
+// Detect all available wallets
 function detectAllWallets(): Wallet[] {
-  const providers = getInjectedProviders();
   const wallets: Wallet[] = [];
-  const seenIds = new Set<string>();
   
-  for (const provider of providers) {
-    // MetaMask: isMetaMask = true, isPhantom = false/undefined
-    if (provider.isMetaMask && !provider.isPhantom && !seenIds.has('metamask')) {
-      wallets.push({ id: 'metamask', name: 'MetaMask', icon: '🦊', provider });
-      seenIds.add('metamask');
-    }
-    // Phantom: isPhantom = true
-    else if (provider.isPhantom && !seenIds.has('phantom')) {
-      wallets.push({ id: 'phantom', name: 'Phantom', icon: '👻', provider });
-      seenIds.add('phantom');
-    }
-    // Coinbase: isCoinbaseWallet = true
-    else if (provider.isCoinbaseWallet && !seenIds.has('coinbase')) {
-      wallets.push({ id: 'coinbase', name: 'Coinbase', icon: '🔵', provider });
-      seenIds.add('coinbase');
-    }
-    // Generic provider (only if no known wallet)
-    else if (!provider.isMetaMask && !provider.isPhantom && !provider.isCoinbaseWallet) {
-      const genericId = `injected-${wallets.length}`;
-      wallets.push({ id: genericId, name: 'Injected Wallet', icon: '💼', provider });
-    }
+  // Get specific providers
+  const mm = getMetaMaskProvider();
+  const phantom = getPhantomProvider();
+  const coinbase = getCoinbaseProvider();
+  
+  if (mm) {
+    wallets.push({ id: 'metamask', name: 'MetaMask', icon: '🦊', provider: mm });
+  }
+  
+  if (phantom) {
+    wallets.push({ id: 'phantom', name: 'Phantom', icon: '👻', provider: phantom });
+  }
+  
+  if (coinbase) {
+    wallets.push({ id: 'coinbase', name: 'Coinbase', icon: '🔵', provider: coinbase });
   }
   
   return wallets;
+}
+
+// Connect with specific provider
+async function connectWithProvider(provider: Eip1193Provider): Promise<string | undefined> {
+  const accounts = await provider.request({ method: 'eth_requestAccounts' });
+  return accounts?.[0];
 }
 
 export default function ConnectButton() {
@@ -176,16 +169,16 @@ export default function ConnectButton() {
     }
   }, []);
 
-  const connect = async (wallet: Wallet) => {
+  const handleConnect = async (wallet: Wallet) => {
     setLoading(true);
     try {
-      // Use the SPECIFIC provider that was clicked, not window.ethereum
-      const accounts = await wallet.provider.request({ method: 'eth_requestAccounts' });
-      if (accounts && accounts[0]) {
-        setAddress(accounts[0]);
+      // CRITICAL: Use the SPECIFIC provider, not window.ethereum
+      const account = await connectWithProvider(wallet.provider);
+      if (account) {
+        setAddress(account);
         setConnected(true);
         setShowModal(false);
-        await authenticate(accounts[0], wallet.provider);
+        await authenticate(account, wallet.provider);
       }
     } catch (err) {
       console.error('Connection error:', err);
@@ -194,7 +187,7 @@ export default function ConnectButton() {
     }
   };
 
-  const authenticate = async (walletAddress: string, provider: any) => {
+  const authenticate = async (walletAddress: string, provider: Eip1193Provider) => {
     try {
       const nonceRes = await fetch('/api/auth/nonce', {
         method: 'POST',
@@ -206,6 +199,8 @@ export default function ConnectButton() {
       const { nonce } = await nonceRes.json();
       
       const message = `Sign in to PULSE Protocol\n\nWallet: ${walletAddress}\nNonce: ${nonce}\n\nThis signature proves ownership of your wallet.`;
+      
+      // CRITICAL: Use the SPECIFIC provider for signing too
       const signature = await provider.request({
         method: 'personal_sign',
         params: [message, walletAddress]
@@ -272,7 +267,7 @@ export default function ConnectButton() {
                 {wallets.map((wallet) => (
                   <button 
                     key={wallet.id} 
-                    onClick={() => connect(wallet)}
+                    onClick={() => handleConnect(wallet)}
                     disabled={loading}
                     style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '14px 16px', background: '#222', border: '1px solid #444', borderRadius: '10px', cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.6 : 1 }}
                   >
