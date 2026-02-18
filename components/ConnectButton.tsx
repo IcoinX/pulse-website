@@ -15,7 +15,7 @@ interface EIP6963ProviderDetail {
     uuid: string;
     name: string;
     icon: string;
-    rdns: string; // e.g., "io.metamask", "app.phantom"
+    rdns: string;
   };
   provider: EIP1193Provider;
 }
@@ -26,6 +26,38 @@ interface Wallet {
   icon: string;
   rdns: string;
   provider: EIP1193Provider;
+}
+
+// Safe name extractor - never returns data URI
+function getSafeName(info: EIP6963ProviderDetail['info']): string {
+  const rawName = info?.name;
+  
+  // If name is missing or looks like a data URI, use fallback
+  if (!rawName || typeof rawName !== 'string' || rawName.startsWith('data:')) {
+    // Fallback based on rdns
+    if (info.rdns === 'io.metamask') return 'MetaMask';
+    if (info.rdns === 'app.phantom') return 'Phantom';
+    if (info.rdns === 'com.coinbase.wallet') return 'Coinbase Wallet';
+    return 'Wallet';
+  }
+  
+  return rawName;
+}
+
+// Safe icon extractor
+function getSafeIcon(info: EIP6963ProviderDetail['info']): string {
+  const rawIcon = info?.icon;
+  
+  // If icon is a valid data URI, use it
+  if (rawIcon && typeof rawIcon === 'string' && rawIcon.startsWith('data:')) {
+    return rawIcon;
+  }
+  
+  // Fallback emojis
+  if (info.rdns === 'io.metamask') return '🦊';
+  if (info.rdns === 'app.phantom') return '👻';
+  if (info.rdns === 'com.coinbase.wallet') return '🔵';
+  return '💼';
 }
 
 // Hook for EIP-6963 provider discovery
@@ -42,7 +74,11 @@ function useEip6963Providers() {
       const detail = event.detail as EIP6963ProviderDetail;
       if (!detail?.info?.rdns || !detail?.provider) return;
       
-      console.log('[EIP-6963] Provider announced:', detail.info.rdns, detail.info.name);
+      console.log('[EIP-6963] Raw provider:', {
+        rdns: detail.info.rdns,
+        name: detail.info.name,
+        iconPreview: detail.info.icon?.substring(0, 50) + '...'
+      });
       
       if (!seen.has(detail.info.rdns)) {
         seen.set(detail.info.rdns, detail);
@@ -50,21 +86,16 @@ function useEip6963Providers() {
       }
     }
 
-    // Listen for provider announcements
     window.addEventListener('eip6963:announceProvider', onAnnounce);
-
-    // Request providers to announce themselves
     window.dispatchEvent(new Event('eip6963:requestProvider'));
 
-    // Fallback: if no EIP-6963 providers, try legacy injection
     const fallbackTimer = setTimeout(() => {
       if (seen.size === 0) {
         console.log('[EIP-6963] No providers announced, trying legacy...');
         
         const eth = (window as any).ethereum;
         if (eth?.request) {
-          // Try to detect by specific properties
-          let name = 'Injected Wallet';
+          let name = 'Browser Wallet';
           let rdns = 'injected';
           let icon = '💼';
           
@@ -110,35 +141,26 @@ export default function ConnectButton() {
   const [loading, setLoading] = useState(false);
   const { providers, isReady } = useEip6963Providers();
 
-  // Convert providers to wallet list
+  // Convert providers to wallet list with safe names
   const wallets: Wallet[] = providers.map(p => {
-    // Ensure name is never empty and never a data URI
-    let name = p.info?.name || '';
-    if (!name || name.startsWith('data:')) {
-      // Fallback based on rdns
-      if (p.info.rdns === 'io.metamask') name = 'MetaMask';
-      else if (p.info.rdns === 'app.phantom') name = 'Phantom';
-      else if (p.info.rdns === 'com.coinbase.wallet') name = 'Coinbase Wallet';
-      else name = 'Wallet';
-    }
+    const safeName = getSafeName(p.info);
+    const safeIcon = getSafeIcon(p.info);
     
-    // Ensure icon is valid (either data URI or emoji)
-    let icon = p.info?.icon || '';
-    if (!icon && p.info.rdns === 'io.metamask') icon = '🦊';
-    else if (!icon && p.info.rdns === 'app.phantom') icon = '👻';
-    else if (!icon && p.info.rdns === 'com.coinbase.wallet') icon = '🔵';
-    else if (!icon) icon = '💼';
+    console.log('[Wallet] Mapped:', {
+      rdns: p.info.rdns,
+      safeName,
+      safeIconPreview: safeIcon.startsWith('data:') ? safeIcon.substring(0, 50) + '...' : safeIcon
+    });
     
     return {
       id: p.info.rdns,
-      name,
-      icon,
+      name: safeName,
+      icon: safeIcon,
       rdns: p.info.rdns,
       provider: p.provider
     };
   });
 
-  // Check if already connected
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const w = window as any;
@@ -149,16 +171,13 @@ export default function ConnectButton() {
   }, []);
 
   const handleConnect = async (wallet: Wallet) => {
-    console.log('[Connect] Attempting to connect with:', wallet.rdns, wallet.name);
+    console.log('[Connect] Connecting with:', wallet.name, wallet.rdns);
     setLoading(true);
     
     try {
-      // CRITICAL: Use the SPECIFIC provider from EIP-6963
       const accounts = await wallet.provider.request({ 
         method: 'eth_requestAccounts' 
       });
-      
-      console.log('[Connect] Got accounts:', accounts);
       
       if (accounts && accounts[0]) {
         setAddress(accounts[0]);
@@ -257,11 +276,11 @@ export default function ConnectButton() {
                     style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '14px 16px', background: '#222', border: '1px solid #444', borderRadius: '10px', cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.6 : 1 }}
                   >
                     {wallet.icon.startsWith('data:') ? (
-                      <img src={wallet.icon} alt={wallet.name} style={{ width: '32px', height: '32px', borderRadius: '6px' }} />
+                      <img src={wallet.icon} alt={wallet.name} style={{ width: '32px', height: '32px', borderRadius: '6px', objectFit: 'contain' }} />
                     ) : (
-                      <span style={{ fontSize: '24px' }}>{wallet.icon}</span>
+                      <span style={{ fontSize: '24px', width: '32px', textAlign: 'center' }}>{wallet.icon}</span>
                     )}
-                    <span style={{ color: '#fff', fontSize: '16px' }}>{wallet.name}</span>
+                    <span style={{ color: '#fff', fontSize: '16px', fontWeight: 500 }}>{wallet.name}</span>
                     <span style={{ marginLeft: 'auto', fontSize: '12px', color: '#22C55E', background: 'rgba(34, 197, 94, 0.1)', padding: '4px 8px', borderRadius: '4px' }}>
                       {loading ? '...' : 'Connect'}
                     </span>
