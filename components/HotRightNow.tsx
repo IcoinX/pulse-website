@@ -20,6 +20,7 @@ interface TrendingMeta {
   message?: string;
   count: number;
   window: string;
+  minRequired?: number;
 }
 
 export default function HotRightNow() {
