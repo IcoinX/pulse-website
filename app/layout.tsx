@@ -1,9 +1,7 @@
 import './globals.css';
-import '@rainbow-me/rainbowkit/styles.css';
 import type { Metadata } from 'next';
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { AuthProvider } from '@/hooks/useAuth';
-import { Web3Provider } from '@/components/Web3Provider';
 import { Toaster } from 'react-hot-toast';
 import AuthToastListener from '@/components/AuthToastListener';
 
@@ -33,35 +31,33 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className="antialiased">
         <ThemeProvider>
-          <Web3Provider>
-            <AuthProvider>
-              {children}
-              <AuthToastListener />
-              <Toaster 
-                position="bottom-right"
-                toastOptions={{
-                  duration: 3000,
-                  style: {
-                    background: '#1f2937',
-                    color: '#fff',
-                    border: '1px solid rgba(255,255,255,0.1)',
+          <AuthProvider>
+            {children}
+            <AuthToastListener />
+            <Toaster 
+              position="bottom-right"
+              toastOptions={{
+                duration: 3000,
+                style: {
+                  background: '#1f2937',
+                  color: '#fff',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                },
+                success: {
+                  iconTheme: {
+                    primary: '#10b981',
+                    secondary: '#fff',
                   },
-                  success: {
-                    iconTheme: {
-                      primary: '#10b981',
-                      secondary: '#fff',
-                    },
+                },
+                error: {
+                  iconTheme: {
+                    primary: '#ef4444',
+                    secondary: '#fff',
                   },
-                  error: {
-                    iconTheme: {
-                      primary: '#ef4444',
-                      secondary: '#fff',
-                    },
-                  },
-                }}
-              />
-            </AuthProvider>
-          </Web3Provider>
+                },
+              }}
+            />
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>
