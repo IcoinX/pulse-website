@@ -2,6 +2,22 @@
 
 import { useEffect, useState } from 'react';
 
+// Format relative time (same as EventCard)
+function getRelativeTime(dateStr: string): string {
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / (1000 * 60));
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  
+  if (diffMins < 1) return 'just now';
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays === 1) return '1d ago';
+  return `${diffDays}d ago`;
+}
+
 interface TrendingItem {
   id: string;
   title: string;
@@ -221,7 +237,7 @@ export default function HotRightNow() {
                   fontSize: 11,
                   color: '#666'
                 }}>
-                  {Math.round(item.ageHours)}h ago
+                  {getRelativeTime(item.created_at)}
                 </span>
               </div>
             </div>
