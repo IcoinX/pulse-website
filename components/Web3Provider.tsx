@@ -47,24 +47,25 @@ const baseSepolia = {
 
 const chains = [base, baseSepolia] as const;
 
-// Configure wallets
+// Configure wallets - ORDER MATTERS!
+// WalletConnect first (universal QR code), then specific wallets
 const connectors = connectorsForWallets(
   [
     {
-      groupName: 'Popular',
+      groupName: 'Recommended',
       wallets: [
-        metaMaskWallet,
-        phantomWallet,
-        coinbaseWallet,
-        rainbowWallet,
+        walletConnectWallet,  // Universal - works with any wallet via QR
+        coinbaseWallet,       // Has its own popup
       ],
     },
     {
-      groupName: 'More',
+      groupName: 'Browser Wallets',
       wallets: [
-        walletConnectWallet,
+        metaMaskWallet,
+        phantomWallet,
         braveWallet,
-        injectedWallet,
+        injectedWallet,  // Generic fallback
+        rainbowWallet,
       ],
     },
   ],
@@ -97,6 +98,9 @@ export function Web3Provider({ children }: { children: React.ReactNode }) {
             borderRadius: 'medium',
             fontStack: 'system',
           })}
+          appInfo={{
+            appName: 'PULSE Protocol',
+          }}
         >
           {children}
         </RainbowKitProvider>
