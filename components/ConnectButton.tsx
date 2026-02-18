@@ -13,17 +13,6 @@ interface Wallet {
 
 const WALLETS: Wallet[] = [
   {
-    id: 'metamask',
-    name: 'MetaMask',
-    icon: '🦊',
-    installed: false,
-    detect: () => {
-      if (typeof window === 'undefined') return false;
-      const eth = (window as any).ethereum;
-      return !!(eth?.isMetaMask && !eth?.isPhantom);
-    },
-  },
-  {
     id: 'phantom',
     name: 'Phantom',
     icon: '👻',
@@ -32,7 +21,22 @@ const WALLETS: Wallet[] = [
       if (typeof window === 'undefined') return false;
       const eth = (window as any).ethereum;
       const phantom = (window as any).phantom;
+      // Phantom has isPhantom flag OR phantom.ethereum exists
       return !!(eth?.isPhantom || phantom?.ethereum);
+    },
+  },
+  {
+    id: 'metamask',
+    name: 'MetaMask',
+    icon: '🦊',
+    installed: false,
+    detect: () => {
+      if (typeof window === 'undefined') return false;
+      const eth = (window as any).ethereum;
+      // MetaMask ONLY if isMetaMask is true AND isPhantom is false/undefined
+      // AND no phantom object exists
+      const isPhantom = !!(eth?.isPhantom || (window as any).phantom?.ethereum);
+      return !!(eth?.isMetaMask && !isPhantom);
     },
   },
   {

@@ -23,9 +23,30 @@ function getProvider(walletId?: string) {
   
   const w = window as any;
   
-  // If multiple wallets, try to get the specific one
-  if (walletId === 'phantom' && w.phantom?.ethereum) {
-    return w.phantom.ethereum;
+  // If Phantom is requested, try to get Phantom's provider
+  if (walletId === 'phantom') {
+    // Phantom injects at window.phantom.ethereum
+    if (w.phantom?.ethereum) {
+      return w.phantom.ethereum;
+    }
+    // Or it might be the main ethereum provider with isPhantom flag
+    if (w.ethereum?.isPhantom) {
+      return w.ethereum;
+    }
+  }
+  
+  // If MetaMask is requested, we need to be careful
+  if (walletId === 'metamask') {
+    // Check if Phantom is overriding - if so, we can't easily get MetaMask
+    if (w.phantom?.ethereum || w.ethereum?.isPhantom) {
+      // Phantom is active, can't get MetaMask directly
+      // Return the provider but user needs to disable Phantom
+      return null;
+    }
+    // Pure MetaMask
+    if (w.ethereum?.isMetaMask && !w.ethereum?.isPhantom) {
+      return w.ethereum;
+    }
   }
   
   if (walletId === 'coinbase' && w.ethereum?.isCoinbaseWallet) {
@@ -33,10 +54,6 @@ function getProvider(walletId?: string) {
   }
   
   if (walletId === 'brave' && w.ethereum?.isBraveWallet) {
-    return w.ethereum;
-  }
-  
-  if (walletId === 'metamask' && w.ethereum?.isMetaMask && !w.ethereum?.isPhantom) {
     return w.ethereum;
   }
   
