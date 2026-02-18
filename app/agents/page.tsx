@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { createClient } from '@supabase/supabase-js';
-import AlertsPanel, { AlertBadge } from '@/components/AlertsPanel';
+import AlertsPanel from '@/components/AlertsPanel';
 import { getUnreadCount } from '@/lib/alerts';
 import { 
   TrendingUp, 
@@ -519,7 +519,11 @@ export default function AgentsPage() {
             <div className="flex items-center gap-2 mb-2">
               <div className="relative">
                 <Star className="w-4 h-4 text-yellow-400" />
-                {unreadAlerts > 0 && <AlertBadge count={unreadAlerts} />}
+                {unreadAlerts > 0 && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-purple-500 rounded-full text-[10px] flex items-center justify-center text-white">
+                    {unreadAlerts}
+                  </span>
+                )}
               </div>
               <span className="text-xs text-gray-500">Watchlist</span>
             </div>
