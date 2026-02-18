@@ -13,6 +13,7 @@ interface AuthContextType {
   isConnected: boolean;
   connect: (walletId?: string) => Promise<void>;
   connectWithProvider: (provider: any) => Promise<void>;
+  connectViaDeepLink: () => void;
   disconnect: () => void;
 }
 
@@ -163,6 +164,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await connectWithProvider(provider);
   };
 
+  const connectViaDeepLink = () => {
+    // Redirect to MetaMask mobile or show message
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    
+    if (isMobile) {
+      // Try to open MetaMask mobile app
+      window.location.href = 'https://metamask.app.link/dapp/pulseprotocol.co';
+    } else {
+      // On desktop, try to open MetaMask extension via ethereum: URI
+      const currentUrl = encodeURIComponent(window.location.href);
+      window.location.href = `ethereum:${currentUrl}`;
+      
+      // Show helpful message after short delay
+      setTimeout(() => {
+        alert('If MetaMask did not open automatically:\n\n1. Make sure MetaMask extension is installed\n2. Click the MetaMask icon in your browser toolbar\n3. Refresh this page and try again\n\nOr use the "Open in MetaMask Mobile" link below.');
+      }, 500);
+    }
+  };
+
   const disconnect = () => {
     localStorage.removeItem('pulse_token');
     localStorage.removeItem('pulse_user');
@@ -177,6 +197,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isConnected: !!user,
       connect,
       connectWithProvider,
+      connectViaDeepLink,
       disconnect
     }}>
       {children}

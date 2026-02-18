@@ -7,8 +7,12 @@ interface DetectedWallet {
   id: string;
   name: string;
   icon: string;
-  provider: any;
+  provider?: any;
+  isWalletConnect?: boolean;
 }
+
+// WalletConnect configuration
+const WALLET_CONNECT_PROJECT_ID = 'pulseprotocol'; // Fallback project ID
 
 // Detect all available wallets
 function detectWallets(): DetectedWallet[] {
@@ -58,7 +62,7 @@ function detectWallets(): DetectedWallet[] {
 }
 
 export default function ConnectButton() {
-  const { user, isLoading, isConnected, connectWithProvider, disconnect } = useAuth();
+  const { user, isLoading, isConnected, connectWithProvider, connectViaDeepLink, disconnect } = useAuth();
   const [showModal, setShowModal] = useState(false);
   const [wallets, setWallets] = useState<DetectedWallet[]>([]);
   const [detected, setDetected] = useState(false);
@@ -75,7 +79,11 @@ export default function ConnectButton() {
 
   const handleWalletClick = async (wallet: DetectedWallet) => {
     setShowModal(false);
-    await connectWithProvider(wallet.provider);
+    if (wallet.isWalletConnect) {
+      await connectViaDeepLink();
+    } else {
+      await connectWithProvider(wallet.provider);
+    }
   };
 
   if (isLoading && !detected) {
@@ -215,22 +223,6 @@ export default function ConnectButton() {
             {wallets.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '20px' }}>
                 <p style={{ color: '#666', marginBottom: '16px' }}>No wallet detected</p>
-                <a 
-                  href="https://metamask.io/download/" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  style={{
-                    display: 'inline-block',
-                    padding: '10px 20px',
-                    background: '#2563EB',
-                    color: '#fff',
-                    borderRadius: '8px',
-                    textDecoration: 'none',
-                    fontSize: '14px'
-                  }}
-                >
-                  Install MetaMask
-                </a>
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -277,16 +269,67 @@ export default function ConnectButton() {
               </div>
             )}
 
-            <p style={{ 
-              marginTop: '16px', 
-              fontSize: '12px', 
-              color: '#666', 
-              textAlign: 'center' 
-            }}>
-              {wallets.length > 0 
-                ? 'Click a wallet to connect' 
-                : 'Install a wallet browser extension to connect'}
-            </p>
+            {/* Universal WalletConnect Option */}
+            <div style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px solid #333' }}>
+              <p style={{ color: '#888', fontSize: '12px', marginBottom: '12px', textAlign: 'center' }}>
+                Other wallets blocked by Phantom? Use:
+              </p>
+              <button
+                onClick={() => handleWalletClick({ id: 'wc', name: 'WalletConnect', icon: '🔗', isWalletConnect: true })}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  padding: '14px 16px',
+                  background: '#3B82F6',
+                  border: 'none',
+                  borderRadius: '10px',
+                  cursor: 'pointer',
+                  width: '100%',
+                  transition: 'all 0.2s',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = '#2563EB';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = '#3B82F6';
+                }}
+              >
+                <span style={{ fontSize: '24px' }}>🔗</span>
+                <span style={{ color: '#fff', fontSize: '16px', fontWeight: 500 }}>
+                  WalletConnect (Universal)
+                </span>
+                <span style={{ 
+                  marginLeft: 'auto', 
+                  fontSize: '12px', 
+                  color: '#fff',
+                  background: 'rgba(255,255,255,0.2)',
+                  padding: '4px 8px',
+                  borderRadius: '4px',
+                }}>
+                  QR Code
+                </span>
+              </button>
+            </div>
+
+            {/* Manual MetaMask deeplink */}
+            <div style={{ marginTop: '16px' }}>
+              <a
+                href="https://metamask.app.link/dapp/pulseprotocol.co"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: 'block',
+                  textAlign: 'center',
+                  padding: '10px',
+                  color: '#9CA3AF',
+                  fontSize: '13px',
+                  textDecoration: 'none',
+                }}
+              >
+                🦊 Open in MetaMask Mobile →
+              </a>
+            </div>
           </div>
         </div>
       )}
