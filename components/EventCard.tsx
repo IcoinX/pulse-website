@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { VerificationBadge, type VerificationStatus } from './VerificationBadge';
+import VerificationBadge, { type VerificationStatus } from './VerificationBadge';
 
 interface Event {
   event_id: number;
