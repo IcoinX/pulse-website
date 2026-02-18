@@ -12,6 +12,7 @@ interface AuthContextType {
   isLoading: boolean;
   isConnected: boolean;
   connect: (walletId?: string) => Promise<void>;
+  connectWithProvider: (provider: any) => Promise<void>;
   disconnect: () => void;
 }
 
@@ -89,13 +90,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(false);
   }, []);
 
-  const connect = async (walletId?: string) => {
+  const connectWithProvider = async (provider: any) => {
     setIsLoading(true);
     try {
-      const provider = getProvider(walletId);
-      
       if (!provider) {
-        alert('No wallet detected. Please install MetaMask or another wallet.');
+        alert('No wallet provider available.');
         return;
       }
 
@@ -159,6 +158,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const connect = async (walletId?: string) => {
+    const provider = getProvider(walletId);
+    await connectWithProvider(provider);
+  };
+
   const disconnect = () => {
     localStorage.removeItem('pulse_token');
     localStorage.removeItem('pulse_user');
@@ -172,6 +176,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isLoading,
       isConnected: !!user,
       connect,
+      connectWithProvider,
       disconnect
     }}>
       {children}

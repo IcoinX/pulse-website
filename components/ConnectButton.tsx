@@ -3,110 +3,69 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 
-interface Wallet {
+interface DetectedWallet {
   id: string;
   name: string;
   icon: string;
-  installed: boolean;
-  detect: () => boolean;
+  provider: any;
 }
 
-// Helper to detect wallets using EIP-5749 (window.ethereum.providers)
-function detectWallet(walletId: string): boolean {
-  if (typeof window === 'undefined') return false;
+// Detect all available wallets
+function detectWallets(): DetectedWallet[] {
+  if (typeof window === 'undefined') return [];
   
   const w = window as any;
+  const wallets: DetectedWallet[] = [];
+  const seen = new Set<string>();
+  
+  // Check for EIP-5749 providers array
   const providers = w.ethereum?.providers || [];
   
-  switch (walletId) {
-    case 'phantom':
-      return providers.some((p: any) => p.isPhantom) || 
-             !!w.phantom?.ethereum || 
-             !!w.ethereum?.isPhantom;
-    
-    case 'metamask':
-      // MetaMask: isMetaMask=true AND isPhantom=false
-      return providers.some((p: any) => p.isMetaMask && !p.isPhantom) ||
-             !!(w.ethereum?.isMetaMask && !w.ethereum?.isPhantom);
-    
-    case 'coinbase':
-      return providers.some((p: any) => p.isCoinbaseWallet) ||
-             !!w.ethereum?.isCoinbaseWallet;
-    
-    case 'brave':
-      return providers.some((p: any) => p.isBraveWallet) ||
-             !!w.ethereum?.isBraveWallet;
-    
-    case 'rainbow':
-      return providers.some((p: any) => p.isRainbow) ||
-             !!w.ethereum?.isRainbow;
-    
-    case 'injected':
-      return !!w.ethereum && !w.ethereum?.isMetaMask && !w.ethereum?.isPhantom;
-    
-    default:
-      return false;
+  providers.forEach((provider: any) => {
+    if (provider.isPhantom && !seen.has('phantom')) {
+      wallets.push({ id: 'phantom', name: 'Phantom', icon: '👻', provider });
+      seen.add('phantom');
+    } else if (provider.isMetaMask && !provider.isPhantom && !seen.has('metamask')) {
+      wallets.push({ id: 'metamask', name: 'MetaMask', icon: '🦊', provider });
+      seen.add('metamask');
+    } else if (provider.isCoinbaseWallet && !seen.has('coinbase')) {
+      wallets.push({ id: 'coinbase', name: 'Coinbase', icon: '🔵', provider });
+      seen.add('coinbase');
+    } else if (provider.isBraveWallet && !seen.has('brave')) {
+      wallets.push({ id: 'brave', name: 'Brave', icon: '🦁', provider });
+      seen.add('brave');
+    }
+  });
+  
+  // Also check window.phantom.ethereum
+  if (w.phantom?.ethereum && !seen.has('phantom')) {
+    wallets.push({ id: 'phantom', name: 'Phantom', icon: '👻', provider: w.phantom.ethereum });
+    seen.add('phantom');
   }
+  
+  // Check main window.ethereum as fallback
+  if (w.ethereum && !seen.has('metamask') && w.ethereum.isMetaMask && !w.ethereum.isPhantom) {
+    wallets.push({ id: 'metamask', name: 'MetaMask', icon: '🦊', provider: w.ethereum });
+    seen.add('metamask');
+  }
+  
+  if (w.ethereum && !seen.has('phantom') && w.ethereum.isPhantom) {
+    wallets.push({ id: 'phantom', name: 'Phantom', icon: '👻', provider: w.ethereum });
+    seen.add('phantom');
+  }
+  
+  return wallets;
 }
 
-const WALLETS: Wallet[] = [
-  {
-    id: 'phantom',
-    name: 'Phantom',
-    icon: '👻',
-    installed: false,
-    detect: () => detectWallet('phantom'),
-  },
-  {
-    id: 'metamask',
-    name: 'MetaMask',
-    icon: '🦊',
-    installed: false,
-    detect: () => detectWallet('metamask'),
-  },
-  {
-    id: 'coinbase',
-    name: 'Coinbase Wallet',
-    icon: '🔵',
-    installed: false,
-    detect: () => detectWallet('coinbase'),
-  },
-  {
-    id: 'brave',
-    name: 'Brave Wallet',
-    icon: '🦁',
-    installed: false,
-    detect: () => detectWallet('brave'),
-  },
-  {
-    id: 'rainbow',
-    name: 'Rainbow',
-    icon: '🌈',
-    installed: false,
-    detect: () => detectWallet('rainbow'),
-  },
-  {
-    id: 'injected',
-    name: 'Browser Wallet',
-    icon: '🔐',
-    installed: false,
-    detect: () => detectWallet('injected'),
-  },
-];
-
 export default function ConnectButton() {
-  const { user, isLoading, isConnected, connect, disconnect } = useAuth();
+  const { user, isLoading, isConnected, connectWithProvider, disconnect } = useAuth();
   const [showModal, setShowModal] = useState(false);
-  const [wallets, setWallets] = useState<Wallet[]>(WALLETS);
+  const [wallets, setWallets] = useState<DetectedWallet[]>([]);
   const [detected, setDetected] = useState(false);
 
   useEffect(() => {
-    // Detect installed wallets
-    const detectedWallets = WALLETS.map(w => ({
-      ...w,
-      installed: w.detect(),
-    }));
-    setWallets(detectedWallets);
+    const detected = detectWallets();
+    setWallets(detected);
     setDetected(true);
   }, []);
 
@@ -114,9 +73,9 @@ export default function ConnectButton() {
     return `${address.slice(0, 6)}...${address.slice(-4)}`;
   };
 
-  const handleWalletClick = async (walletId: string) => {
+  const handleWalletClick = async (wallet: DetectedWallet) => {
     setShowModal(false);
-    await connect(walletId);
+    await connectWithProvider(wallet.provider);
   };
 
   if (isLoading && !detected) {
@@ -207,7 +166,7 @@ export default function ConnectButton() {
           e.currentTarget.style.transform = 'scale(1)';
         }}
       >
-        🔌 Connect Wallet
+        🔌 Connect Wallet ({wallets.length} detected)
       </button>
 
       {showModal && (
@@ -253,30 +212,56 @@ export default function ConnectButton() {
               </button>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {wallets.map((wallet) => (
-                <button
-                  key={wallet.id}
-                  onClick={() => handleWalletClick(wallet.id)}
+            {wallets.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '20px' }}>
+                <p style={{ color: '#666', marginBottom: '16px' }}>No wallet detected</p>
+                <a 
+                  href="https://metamask.io/download/" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
                   style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '12px',
-                    padding: '14px 16px',
-                    background: wallet.installed ? '#222' : '#1a1a1a',
-                    border: `1px solid ${wallet.installed ? '#444' : '#333'}`,
-                    borderRadius: '10px',
-                    cursor: wallet.installed ? 'pointer' : 'not-allowed',
-                    opacity: wallet.installed ? 1 : 0.5,
-                    transition: 'all 0.2s',
+                    display: 'inline-block',
+                    padding: '10px 20px',
+                    background: '#2563EB',
+                    color: '#fff',
+                    borderRadius: '8px',
+                    textDecoration: 'none',
+                    fontSize: '14px'
                   }}
-                  disabled={!wallet.installed}
                 >
-                  <span style={{ fontSize: '24px' }}>{wallet.icon}</span>
-                  <span style={{ color: '#fff', fontSize: '16px', fontWeight: 500 }}>
-                    {wallet.name}
-                  </span>
-                  {wallet.installed && (
+                  Install MetaMask
+                </a>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {wallets.map((wallet) => (
+                  <button
+                    key={wallet.id}
+                    onClick={() => handleWalletClick(wallet)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px',
+                      padding: '14px 16px',
+                      background: '#222',
+                      border: '1px solid #444',
+                      borderRadius: '10px',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = '#333';
+                      e.currentTarget.style.borderColor = '#555';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = '#222';
+                      e.currentTarget.style.borderColor = '#444';
+                    }}
+                  >
+                    <span style={{ fontSize: '24px' }}>{wallet.icon}</span>
+                    <span style={{ color: '#fff', fontSize: '16px', fontWeight: 500 }}>
+                      {wallet.name}
+                    </span>
                     <span style={{ 
                       marginLeft: 'auto', 
                       fontSize: '12px', 
@@ -285,21 +270,12 @@ export default function ConnectButton() {
                       padding: '4px 8px',
                       borderRadius: '4px',
                     }}>
-                      Detected
+                      Connect
                     </span>
-                  )}
-                  {!wallet.installed && wallet.id !== 'injected' && (
-                    <span style={{ 
-                      marginLeft: 'auto', 
-                      fontSize: '12px', 
-                      color: '#666',
-                    }}>
-                      Not installed
-                    </span>
-                  )}
-                </button>
-              ))}
-            </div>
+                  </button>
+                ))}
+              </div>
+            )}
 
             <p style={{ 
               marginTop: '16px', 
@@ -307,7 +283,9 @@ export default function ConnectButton() {
               color: '#666', 
               textAlign: 'center' 
             }}>
-              Install a wallet browser extension to connect
+              {wallets.length > 0 
+                ? 'Click a wallet to connect' 
+                : 'Install a wallet browser extension to connect'}
             </p>
           </div>
         </div>
