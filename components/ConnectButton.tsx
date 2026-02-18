@@ -11,77 +11,86 @@ interface Wallet {
   detect: () => boolean;
 }
 
+// Helper to detect wallets using EIP-5749 (window.ethereum.providers)
+function detectWallet(walletId: string): boolean {
+  if (typeof window === 'undefined') return false;
+  
+  const w = window as any;
+  const providers = w.ethereum?.providers || [];
+  
+  switch (walletId) {
+    case 'phantom':
+      return providers.some((p: any) => p.isPhantom) || 
+             !!w.phantom?.ethereum || 
+             !!w.ethereum?.isPhantom;
+    
+    case 'metamask':
+      // MetaMask: isMetaMask=true AND isPhantom=false
+      return providers.some((p: any) => p.isMetaMask && !p.isPhantom) ||
+             !!(w.ethereum?.isMetaMask && !w.ethereum?.isPhantom);
+    
+    case 'coinbase':
+      return providers.some((p: any) => p.isCoinbaseWallet) ||
+             !!w.ethereum?.isCoinbaseWallet;
+    
+    case 'brave':
+      return providers.some((p: any) => p.isBraveWallet) ||
+             !!w.ethereum?.isBraveWallet;
+    
+    case 'rainbow':
+      return providers.some((p: any) => p.isRainbow) ||
+             !!w.ethereum?.isRainbow;
+    
+    case 'injected':
+      return !!w.ethereum && !w.ethereum?.isMetaMask && !w.ethereum?.isPhantom;
+    
+    default:
+      return false;
+  }
+}
+
 const WALLETS: Wallet[] = [
   {
     id: 'phantom',
     name: 'Phantom',
     icon: '👻',
     installed: false,
-    detect: () => {
-      if (typeof window === 'undefined') return false;
-      const eth = (window as any).ethereum;
-      const phantom = (window as any).phantom;
-      // Phantom has isPhantom flag OR phantom.ethereum exists
-      return !!(eth?.isPhantom || phantom?.ethereum);
-    },
+    detect: () => detectWallet('phantom'),
   },
   {
     id: 'metamask',
     name: 'MetaMask',
     icon: '🦊',
     installed: false,
-    detect: () => {
-      if (typeof window === 'undefined') return false;
-      const eth = (window as any).ethereum;
-      // MetaMask ONLY if isMetaMask is true AND isPhantom is false/undefined
-      // AND no phantom object exists
-      const isPhantom = !!(eth?.isPhantom || (window as any).phantom?.ethereum);
-      return !!(eth?.isMetaMask && !isPhantom);
-    },
+    detect: () => detectWallet('metamask'),
   },
   {
     id: 'coinbase',
     name: 'Coinbase Wallet',
     icon: '🔵',
     installed: false,
-    detect: () => {
-      if (typeof window === 'undefined') return false;
-      const eth = (window as any).ethereum;
-      return !!(eth?.isCoinbaseWallet);
-    },
+    detect: () => detectWallet('coinbase'),
   },
   {
     id: 'brave',
     name: 'Brave Wallet',
     icon: '🦁',
     installed: false,
-    detect: () => {
-      if (typeof window === 'undefined') return false;
-      const eth = (window as any).ethereum;
-      return !!(eth?.isBraveWallet);
-    },
+    detect: () => detectWallet('brave'),
   },
   {
     id: 'rainbow',
     name: 'Rainbow',
     icon: '🌈',
     installed: false,
-    detect: () => {
-      if (typeof window === 'undefined') return false;
-      const eth = (window as any).ethereum;
-      return !!(eth?.isRainbow);
-    },
+    detect: () => detectWallet('rainbow'),
   },
   {
     id: 'injected',
     name: 'Browser Wallet',
     icon: '🔐',
     installed: false,
-    detect: () => {
-      if (typeof window === 'undefined') return false;
-      const eth = (window as any).ethereum;
-      return !!eth && !eth?.isMetaMask && !eth?.isPhantom;
-    },
+    detect: () => detectWallet('injected'),
   },
 ];
 

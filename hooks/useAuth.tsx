@@ -23,34 +23,46 @@ function getProvider(walletId?: string) {
   
   const w = window as any;
   
-  // If Phantom is requested, try to get Phantom's provider
+  // EIP-5749: Check for multiple providers in window.ethereum.providers
+  const providers = w.ethereum?.providers || [];
+  
+  // If Phantom is requested
   if (walletId === 'phantom') {
-    if (w.phantom?.ethereum) {
-      return w.phantom.ethereum;
-    }
-    if (w.ethereum?.isPhantom) {
-      return w.ethereum;
-    }
+    // Check in providers array first
+    const phantomProvider = providers.find((p: any) => p.isPhantom);
+    if (phantomProvider) return phantomProvider;
+    // Check window.phantom.ethereum
+    if (w.phantom?.ethereum) return w.phantom.ethereum;
+    // Check main ethereum
+    if (w.ethereum?.isPhantom) return w.ethereum;
   }
   
-  // For MetaMask and others, use the main ethereum provider
-  // Even if Phantom is present, window.ethereum should still work
+  // For MetaMask
   if (walletId === 'metamask') {
-    // Try to get MetaMask specifically
-    if (w.ethereum?.isMetaMask) {
+    // Check in providers array first (EIP-5749)
+    const mmProvider = providers.find((p: any) => p.isMetaMask && !p.isPhantom);
+    if (mmProvider) return mmProvider;
+    // Check main ethereum
+    if (w.ethereum?.isMetaMask && !w.ethereum?.isPhantom) {
       return w.ethereum;
     }
   }
   
-  if (walletId === 'coinbase' && w.ethereum?.isCoinbaseWallet) {
-    return w.ethereum;
+  // For Coinbase
+  if (walletId === 'coinbase') {
+    const cbProvider = providers.find((p: any) => p.isCoinbaseWallet);
+    if (cbProvider) return cbProvider;
+    if (w.ethereum?.isCoinbaseWallet) return w.ethereum;
   }
   
-  if (walletId === 'brave' && w.ethereum?.isBraveWallet) {
-    return w.ethereum;
+  // For Brave
+  if (walletId === 'brave') {
+    const braveProvider = providers.find((p: any) => p.isBraveWallet);
+    if (braveProvider) return braveProvider;
+    if (w.ethereum?.isBraveWallet) return w.ethereum;
   }
   
-  // Fallback to any available provider
+  // Fallback to main provider
   if (w.ethereum) {
     return w.ethereum;
   }
