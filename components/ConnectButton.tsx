@@ -9,61 +9,90 @@ interface Wallet {
   provider: any;
 }
 
-// Production-grade wallet detection with event + polling fallback
-function getWalletProvider(): { wallets: Wallet[]; error?: string } {
-  if (typeof window === 'undefined') return { wallets: [] };
+// EIP-1193 Provider type
+interface Eip1193Provider {
+  request: (args: { method: string; params?: any[] }) => Promise<any>;
+  on?: (event: string, handler: (...args: any[]) => void) => void;
+  removeListener?: (event: string, handler: (...args: any[]) => void) => void;
+  isMetaMask?: boolean;
+  isPhantom?: boolean;
+  isCoinbaseWallet?: boolean;
+  rdns?: string;
+  providers?: Eip1193Provider[];
+}
+
+// Get ALL injected providers (handles multi-wallet scenario)
+function getInjectedProviders(): Eip1193Provider[] {
+  if (typeof window === 'undefined') return [];
   
-  const w = window as any;
-  const wallets: Wallet[] = [];
-  const seen = new Set<string>();
+  const eth = (window as any).ethereum as Eip1193Provider | undefined;
+  if (!eth) return [];
   
-  // 1. EIP-5749: Check providers array (multiple wallets installed)
-  if (w.ethereum?.providers && Array.isArray(w.ethereum.providers)) {
-    w.ethereum.providers.forEach((provider: any) => {
-      if (provider.isMetaMask && !provider.isPhantom && !seen.has('metamask')) {
-        wallets.push({ id: 'metamask', name: 'MetaMask', icon: '🦊', provider });
-        seen.add('metamask');
-      } else if (provider.isPhantom && !seen.has('phantom')) {
-        wallets.push({ id: 'phantom', name: 'Phantom', icon: '👻', provider });
-        seen.add('phantom');
-      } else if (provider.isCoinbaseWallet && !seen.has('coinbase')) {
-        wallets.push({ id: 'coinbase', name: 'Coinbase', icon: '🔵', provider });
-        seen.add('coinbase');
+  // EIP-5749: If providers array exists, use it (multiple wallets)
+  // Otherwise, wrap single provider in array
+  const providers = Array.isArray(eth.providers) && eth.providers.length > 0
+    ? eth.providers
+    : [eth];
+  
+  // Deduplicate by checking object identity
+  const seen = new Set<Eip1193Provider>();
+  const unique: Eip1193Provider[] = [];
+  
+  for (const p of providers) {
+    // Also check window.phantom.ethereum separately
+    if ((window as any).phantom?.ethereum && p === (window as any).phantom.ethereum) {
+      if (!seen.has(p)) {
+        seen.add(p);
+        unique.push(p);
       }
-    });
-  }
-  
-  // 2. Phantom separate injection (window.phantom.ethereum)
-  if (w.phantom?.ethereum && !seen.has('phantom')) {
-    wallets.push({ id: 'phantom', name: 'Phantom', icon: '👻', provider: w.phantom.ethereum });
-    seen.add('phantom');
-  }
-  
-  // 3. Main window.ethereum (could be any wallet)
-  if (w.ethereum && typeof w.ethereum === 'object') {
-    // MetaMask check (must not be Phantom)
-    if (!seen.has('metamask') && w.ethereum.isMetaMask && !w.ethereum.isPhantom) {
-      wallets.push({ id: 'metamask', name: 'MetaMask', icon: '🦊', provider: w.ethereum });
-      seen.add('metamask');
-    }
-    // Phantom check
-    if (!seen.has('phantom') && w.ethereum.isPhantom) {
-      wallets.push({ id: 'phantom', name: 'Phantom', icon: '👻', provider: w.ethereum });
-      seen.add('phantom');
-    }
-    // Coinbase check
-    if (!seen.has('coinbase') && w.ethereum.isCoinbaseWallet) {
-      wallets.push({ id: 'coinbase', name: 'Coinbase', icon: '🔵', provider: w.ethereum });
-      seen.add('coinbase');
+      continue;
     }
     
-    // 4. Generic injected provider (fallback)
-    if (wallets.length === 0 && w.ethereum.request) {
-      wallets.push({ id: 'injected', name: 'Injected Wallet', icon: '💼', provider: w.ethereum });
+    if (!seen.has(p)) {
+      seen.add(p);
+      unique.push(p);
     }
   }
   
-  return { wallets };
+  // Add window.phantom.ethereum if not already included
+  const phantomProvider = (window as any).phantom?.ethereum;
+  if (phantomProvider && !seen.has(phantomProvider)) {
+    unique.push(phantomProvider);
+  }
+  
+  return unique;
+}
+
+// Detect all wallets from providers
+function detectAllWallets(): Wallet[] {
+  const providers = getInjectedProviders();
+  const wallets: Wallet[] = [];
+  const seenIds = new Set<string>();
+  
+  for (const provider of providers) {
+    // MetaMask: isMetaMask = true, isPhantom = false/undefined
+    if (provider.isMetaMask && !provider.isPhantom && !seenIds.has('metamask')) {
+      wallets.push({ id: 'metamask', name: 'MetaMask', icon: '🦊', provider });
+      seenIds.add('metamask');
+    }
+    // Phantom: isPhantom = true
+    else if (provider.isPhantom && !seenIds.has('phantom')) {
+      wallets.push({ id: 'phantom', name: 'Phantom', icon: '👻', provider });
+      seenIds.add('phantom');
+    }
+    // Coinbase: isCoinbaseWallet = true
+    else if (provider.isCoinbaseWallet && !seenIds.has('coinbase')) {
+      wallets.push({ id: 'coinbase', name: 'Coinbase', icon: '🔵', provider });
+      seenIds.add('coinbase');
+    }
+    // Generic provider (only if no known wallet)
+    else if (!provider.isMetaMask && !provider.isPhantom && !provider.isCoinbaseWallet) {
+      const genericId = `injected-${wallets.length}`;
+      wallets.push({ id: genericId, name: 'Injected Wallet', icon: '💼', provider });
+    }
+  }
+  
+  return wallets;
 }
 
 export default function ConnectButton() {
@@ -75,12 +104,11 @@ export default function ConnectButton() {
   const [checked, setChecked] = useState(false);
   const detectionRef = useRef<{ attempted: boolean; interval?: NodeJS.Timeout }>({ attempted: false });
 
-  // Production-grade detection: Event + Polling fallback
   const detectWallets = useCallback(() => {
-    const result = getWalletProvider();
-    setWallets(result.wallets);
+    const detected = detectAllWallets();
+    setWallets(detected);
     
-    if (result.wallets.length > 0 || detectionRef.current.attempted) {
+    if (detected.length > 0 || detectionRef.current.attempted) {
       setChecked(true);
       if (detectionRef.current.interval) {
         clearInterval(detectionRef.current.interval);
@@ -90,14 +118,12 @@ export default function ConnectButton() {
     detectionRef.current.attempted = true;
   }, []);
 
-  // 1. Event-based detection (MetaMask emits 'ethereum#initialized')
+  // Event-based detection
   useEffect(() => {
     if (typeof window === 'undefined') return;
     
-    // Try immediate detection first
     detectWallets();
     
-    // Listen for MetaMask initialization event
     const handleEthereumInitialized = () => {
       console.log('[Wallet] ethereum#initialized event received');
       detectWallets();
@@ -110,21 +136,18 @@ export default function ConnectButton() {
     };
   }, [detectWallets]);
 
-  // 2. Fallback polling (in case event doesn't fire or provider injects slowly)
+  // Fallback polling
   useEffect(() => {
     if (typeof window === 'undefined') return;
     if (detectionRef.current.interval) return;
     
-    // Start polling if no wallets detected yet
     if (wallets.length === 0 && !checked) {
       const startTime = Date.now();
-      const maxDuration = 3000; // 3 seconds
-      const intervalMs = 100; // 100ms
+      const maxDuration = 3000;
       
       detectionRef.current.interval = setInterval(() => {
         detectWallets();
         
-        // Stop polling after max duration or when wallets found
         if (Date.now() - startTime > maxDuration) {
           if (detectionRef.current.interval) {
             clearInterval(detectionRef.current.interval);
@@ -132,7 +155,7 @@ export default function ConnectButton() {
           }
           setChecked(true);
         }
-      }, intervalMs);
+      }, 100);
       
       return () => {
         if (detectionRef.current.interval) {
@@ -156,6 +179,7 @@ export default function ConnectButton() {
   const connect = async (wallet: Wallet) => {
     setLoading(true);
     try {
+      // Use the SPECIFIC provider that was clicked, not window.ethereum
       const accounts = await wallet.provider.request({ method: 'eth_requestAccounts' });
       if (accounts && accounts[0]) {
         setAddress(accounts[0]);
