@@ -36,11 +36,12 @@ export default async function Home({ searchParams }: PageProps) {
       .select('*', { count: 'exact', head: true })
       .gte('created_at', yesterday);
     
-    // New count (AGENT type)
+    // New count (AGENT type - includes PENDING for radar visibility)
     const { count: newCount } = await supabase
       .from('events')
       .select('*', { count: 'exact', head: true })
-      .eq('source_type', 'AGENT');
+      .eq('source_type', 'AGENT')
+      .gte('created_at', lastWeek);
     
     // Trending count (verified events)
     const { count: trendingCount } = await supabase
@@ -75,10 +76,18 @@ export default async function Home({ searchParams }: PageProps) {
         query = query.gte('created_at', yesterday);
         break;
       case 'new':
-        query = query.or('source_type.eq.AGENT,title.ilike.%deploy%,title.ilike.%launch%');
+        // New Agents tab: ONLY agent-related events
+        query = query
+          .eq('source_type', 'AGENT')
+          .gte('created_at', lastWeek)
+          .order('created_at', { ascending: false });
         break;
       case 'trending':
-        query = query.eq('verification_status', 'VERIFIED').gte('created_at', lastWeek);
+        // Trending: VERIFIED events + PENDING agents (scored differently)
+        query = query
+          .or('verification_status.eq.VERIFIED,and(verification_status.eq.PENDING,source_type.eq.AGENT)')
+          .gte('created_at', lastWeek)
+          .order('created_at', { ascending: false });
         break;
       case 'research':
         query = query.eq('source_type', 'MEDIA');
@@ -143,7 +152,18 @@ export default async function Home({ searchParams }: PageProps) {
                   border: '2px dashed #222',
                   borderRadius: 12
                 }}>
-                  <p>No events found in this tab.</p>
+                  {activeTab === 'new' ? (
+                    <>
+                      <p style={{ margin: '0 0 8px 0', fontSize: 16, color: '#888' }}>
+                        No agent signals yet
+                      </p>
+                      <p style={{ margin: 0, fontSize: 13, color: '#555' }}>
+                        Waiting for on-chain AgentCreated events or GitHub/X sources.
+                      </p>
+                    </>
+                  ) : (
+                    <p>No events found in this tab.</p>
+                  )}
                 </div>
               ) : (
                 events.map((event) => (

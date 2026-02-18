@@ -23,12 +23,13 @@ export async function GET() {
     // Get verified events from last 7 days
     const sevenDaysAgo = new Date(Date.now() - WINDOW_HOURS * 60 * 60 * 1000).toISOString();
     
+    // Get events: VERIFIED first, but include PENDING agents (for agent radar)
     const { data: events, error } = await supabase
       .from('events')
       .select('*')
-      .eq('verification_status', 'VERIFIED')
+      .or('verification_status.eq.VERIFIED,and(verification_status.eq.PENDING,source_type.eq.AGENT)')
       .gte('created_at', sevenDaysAgo)
-      .in('source_type', ['ONCHAIN', 'AGENT', 'GITHUB', 'MEDIA'])
+      .in('source_type', ['ONCHAIN', 'AGENT', 'GITHUB', 'MEDIA', 'CRYPTO', 'AI'])
       .order('created_at', { ascending: false })
       .limit(50);
 
@@ -67,8 +68,12 @@ export async function GET() {
       // Source weight (default 40 if unknown)
       const sourceScore = SOURCE_WEIGHTS[event.source_type] || 40;
       
-      // Final score: recency 60% + source 40%
-      const score = Math.round((recencyScore * 0.6) + (sourceScore * 0.4));
+      // Verification multiplier: VERIFIED = 1.0, PENDING = 0.6
+      const verificationMultiplier = event.verification_status === 'VERIFIED' ? 1.0 : 0.6;
+      
+      // Final score: recency 60% + source 40%, weighted by verification
+      const rawScore = (recencyScore * 0.6) + (sourceScore * 0.4);
+      const score = Math.round(rawScore * verificationMultiplier);
       
       // Determine age badge
       const ageDays = ageHours / 24;
