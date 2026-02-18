@@ -1,8 +1,18 @@
 'use client';
 
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { usePathname, useSearchParams } from 'next/navigation';
-import ConnectButton from './ConnectButton';
+
+// Dynamic import with SSR disabled - ensures wallet detection only runs client-side
+const ConnectButton = dynamic(() => import('./ConnectButton'), {
+  ssr: false,
+  loading: () => (
+    <button disabled style={{ padding: '10px 16px', background: '#374151', color: '#9CA3AF', borderRadius: '8px', border: 'none', fontSize: '14px', cursor: 'not-allowed' }}>
+      Loading...
+    </button>
+  )
+});
 
 interface HeaderProps {
   activeTab?: string;
