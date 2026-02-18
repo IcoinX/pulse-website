@@ -3,23 +3,21 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 
-interface DetectedWallet {
+interface WalletOption {
   id: string;
   name: string;
   icon: string;
   provider?: any;
-  isWalletConnect?: boolean;
+  detected: boolean;
+  deeplink?: string;
 }
 
-// WalletConnect configuration
-const WALLET_CONNECT_PROJECT_ID = 'pulseprotocol'; // Fallback project ID
-
 // Detect all available wallets
-function detectWallets(): DetectedWallet[] {
-  if (typeof window === 'undefined') return [];
+function detectWallets(): { detected: WalletOption[]; all: WalletOption[] } {
+  if (typeof window === 'undefined') return { detected: [], all: [] };
   
   const w = window as any;
-  const wallets: DetectedWallet[] = [];
+  const detectedWallets: WalletOption[] = [];
   const seen = new Set<string>();
   
   // Check for EIP-5749 providers array
@@ -27,66 +25,81 @@ function detectWallets(): DetectedWallet[] {
   
   providers.forEach((provider: any) => {
     if (provider.isPhantom && !seen.has('phantom')) {
-      wallets.push({ id: 'phantom', name: 'Phantom', icon: '👻', provider });
+      detectedWallets.push({ id: 'phantom', name: 'Phantom', icon: '👻', provider, detected: true });
       seen.add('phantom');
     } else if (provider.isMetaMask && !provider.isPhantom && !seen.has('metamask')) {
-      wallets.push({ id: 'metamask', name: 'MetaMask', icon: '🦊', provider });
+      detectedWallets.push({ id: 'metamask', name: 'MetaMask', icon: '🦊', provider, detected: true });
       seen.add('metamask');
     } else if (provider.isCoinbaseWallet && !seen.has('coinbase')) {
-      wallets.push({ id: 'coinbase', name: 'Coinbase', icon: '🔵', provider });
+      detectedWallets.push({ id: 'coinbase', name: 'Coinbase', icon: '🔵', provider, detected: true });
       seen.add('coinbase');
-    } else if (provider.isBraveWallet && !seen.has('brave')) {
-      wallets.push({ id: 'brave', name: 'Brave', icon: '🦁', provider });
-      seen.add('brave');
     }
   });
   
-  // Also check window.phantom.ethereum
+  // Check window.phantom.ethereum
   if (w.phantom?.ethereum && !seen.has('phantom')) {
-    wallets.push({ id: 'phantom', name: 'Phantom', icon: '👻', provider: w.phantom.ethereum });
+    detectedWallets.push({ id: 'phantom', name: 'Phantom', icon: '👻', provider: w.phantom.ethereum, detected: true });
     seen.add('phantom');
   }
   
-  // Check main window.ethereum as fallback
+  // Check main window.ethereum
   if (w.ethereum && !seen.has('metamask') && w.ethereum.isMetaMask && !w.ethereum.isPhantom) {
-    wallets.push({ id: 'metamask', name: 'MetaMask', icon: '🦊', provider: w.ethereum });
+    detectedWallets.push({ id: 'metamask', name: 'MetaMask', icon: '🦊', provider: w.ethereum, detected: true });
     seen.add('metamask');
   }
-  
   if (w.ethereum && !seen.has('phantom') && w.ethereum.isPhantom) {
-    wallets.push({ id: 'phantom', name: 'Phantom', icon: '👻', provider: w.ethereum });
+    detectedWallets.push({ id: 'phantom', name: 'Phantom', icon: '👻', provider: w.ethereum, detected: true });
     seen.add('phantom');
   }
   
-  return wallets;
+  // Build complete list with fallbacks
+  const allWallets: WalletOption[] = [
+    // Phantom - detected or not
+    detectedWallets.find(w => w.id === 'phantom') || 
+      { id: 'phantom', name: 'Phantom', icon: '👻', detected: false, deeplink: 'https://phantom.app/ul/browse/pulseprotocol.co' },
+    
+    // MetaMask - always show with deeplink fallback
+    detectedWallets.find(w => w.id === 'metamask') || 
+      { id: 'metamask', name: 'MetaMask', icon: '🦊', detected: false, deeplink: 'https://metamask.app.link/dapp/pulseprotocol.co' },
+    
+    // Coinbase - detected or not
+    detectedWallets.find(w => w.id === 'coinbase') || 
+      { id: 'coinbase', name: 'Coinbase Wallet', icon: '🔵', detected: false, deeplink: 'https://go.cb-w.com/dapp?cb_url=https%3A%2F%2Fpulseprotocol.co' },
+  ];
+  
+  return { detected: detectedWallets, all: allWallets };
 }
 
 export default function ConnectButton() {
-  const { user, isLoading, isConnected, connectWithProvider, connectViaDeepLink, disconnect } = useAuth();
+  const { user, isLoading, isConnected, connectWithProvider, disconnect } = useAuth();
   const [showModal, setShowModal] = useState(false);
-  const [wallets, setWallets] = useState<DetectedWallet[]>([]);
-  const [detected, setDetected] = useState(false);
+  const [detectedCount, setDetectedCount] = useState(0);
+  const [wallets, setWallets] = useState<WalletOption[]>([]);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    const detected = detectWallets();
-    setWallets(detected);
-    setDetected(true);
+    const { detected, all } = detectWallets();
+    setDetectedCount(detected.length);
+    setWallets(all);
+    setReady(true);
   }, []);
 
   const formatAddress = (address: string) => {
     return `${address.slice(0, 6)}...${address.slice(-4)}`;
   };
 
-  const handleWalletClick = async (wallet: DetectedWallet) => {
-    setShowModal(false);
-    if (wallet.isWalletConnect) {
-      await connectViaDeepLink();
-    } else {
+  const handleWalletClick = async (wallet: WalletOption) => {
+    if (wallet.detected && wallet.provider) {
+      // Use injected provider
+      setShowModal(false);
       await connectWithProvider(wallet.provider);
+    } else if (wallet.deeplink) {
+      // Use deeplink for mobile/non-detected
+      window.location.href = wallet.deeplink;
     }
   };
 
-  if (isLoading && !detected) {
+  if (isLoading && !ready) {
     return (
       <button
         disabled
@@ -174,7 +187,7 @@ export default function ConnectButton() {
           e.currentTarget.style.transform = 'scale(1)';
         }}
       >
-        🔌 Connect Wallet ({wallets.length} detected)
+        🔌 Connect Wallet
       </button>
 
       {showModal && (
@@ -220,116 +233,70 @@ export default function ConnectButton() {
               </button>
             </div>
 
-            {wallets.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '20px' }}>
-                <p style={{ color: '#666', marginBottom: '16px' }}>No wallet detected</p>
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {wallets.map((wallet) => (
-                  <button
-                    key={wallet.id}
-                    onClick={() => handleWalletClick(wallet)}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '12px',
-                      padding: '14px 16px',
-                      background: '#222',
-                      border: '1px solid #444',
-                      borderRadius: '10px',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s',
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = '#333';
-                      e.currentTarget.style.borderColor = '#555';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = '#222';
-                      e.currentTarget.style.borderColor = '#444';
-                    }}
-                  >
-                    <span style={{ fontSize: '24px' }}>{wallet.icon}</span>
-                    <span style={{ color: '#fff', fontSize: '16px', fontWeight: 500 }}>
-                      {wallet.name}
-                    </span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {wallets.map((wallet) => (
+                <button
+                  key={wallet.id}
+                  onClick={() => handleWalletClick(wallet)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    padding: '14px 16px',
+                    background: wallet.detected ? '#222' : '#1a1a1a',
+                    border: `1px solid ${wallet.detected ? '#444' : '#333'}`,
+                    borderRadius: '10px',
+                    cursor: 'pointer',
+                    opacity: wallet.detected ? 1 : 0.7,
+                    transition: 'all 0.2s',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = wallet.detected ? '#333' : '#222';
+                    e.currentTarget.style.borderColor = wallet.detected ? '#555' : '#444';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = wallet.detected ? '#222' : '#1a1a1a';
+                    e.currentTarget.style.borderColor = wallet.detected ? '#444' : '#333';
+                  }}
+                >
+                  <span style={{ fontSize: '24px' }}>{wallet.icon}</span>
+                  <span style={{ color: '#fff', fontSize: '16px', fontWeight: 500 }}>
+                    {wallet.name}
+                  </span>
+                  {wallet.detected ? (
                     <span style={{ 
                       marginLeft: 'auto', 
                       fontSize: '12px', 
                       color: '#22C55E',
-                      background: 'rgba(34, 197, 94, 0.1)',
+                      background: 'rgba(34, 197, 197, 94, 0.1)',
                       padding: '4px 8px',
                       borderRadius: '4px',
                     }}>
-                      Connect
+                      Detected
                     </span>
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {/* Universal WalletConnect Option */}
-            <div style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px solid #333' }}>
-              <p style={{ color: '#888', fontSize: '12px', marginBottom: '12px', textAlign: 'center' }}>
-                Other wallets blocked by Phantom? Use:
-              </p>
-              <button
-                onClick={() => handleWalletClick({ id: 'wc', name: 'WalletConnect', icon: '🔗', isWalletConnect: true })}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  padding: '14px 16px',
-                  background: '#3B82F6',
-                  border: 'none',
-                  borderRadius: '10px',
-                  cursor: 'pointer',
-                  width: '100%',
-                  transition: 'all 0.2s',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = '#2563EB';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = '#3B82F6';
-                }}
-              >
-                <span style={{ fontSize: '24px' }}>🔗</span>
-                <span style={{ color: '#fff', fontSize: '16px', fontWeight: 500 }}>
-                  WalletConnect (Universal)
-                </span>
-                <span style={{ 
-                  marginLeft: 'auto', 
-                  fontSize: '12px', 
-                  color: '#fff',
-                  background: 'rgba(255,255,255,0.2)',
-                  padding: '4px 8px',
-                  borderRadius: '4px',
-                }}>
-                  QR Code
-                </span>
-              </button>
+                  ) : (
+                    <span style={{ 
+                      marginLeft: 'auto', 
+                      fontSize: '12px', 
+                      color: '#888',
+                    }}>
+                      Open App
+                    </span>
+                  )}
+                </button>
+              ))}
             </div>
 
-            {/* Manual MetaMask deeplink */}
-            <div style={{ marginTop: '16px' }}>
-              <a
-                href="https://metamask.app.link/dapp/pulseprotocol.co"
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  display: 'block',
-                  textAlign: 'center',
-                  padding: '10px',
-                  color: '#9CA3AF',
-                  fontSize: '13px',
-                  textDecoration: 'none',
-                }}
-              >
-                🦊 Open in MetaMask Mobile →
-              </a>
-            </div>
+            <p style={{ 
+              marginTop: '16px', 
+              fontSize: '12px', 
+              color: '#666', 
+              textAlign: 'center' 
+            }}>
+              {detectedCount > 0 
+                ? `${detectedCount} wallet${detectedCount > 1 ? 's' : ''} detected in browser` 
+                : 'Click a wallet to open its app'}
+            </p>
           </div>
         </div>
       )}
