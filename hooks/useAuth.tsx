@@ -25,26 +25,19 @@ function getProvider(walletId?: string) {
   
   // If Phantom is requested, try to get Phantom's provider
   if (walletId === 'phantom') {
-    // Phantom injects at window.phantom.ethereum
     if (w.phantom?.ethereum) {
       return w.phantom.ethereum;
     }
-    // Or it might be the main ethereum provider with isPhantom flag
     if (w.ethereum?.isPhantom) {
       return w.ethereum;
     }
   }
   
-  // If MetaMask is requested, we need to be careful
+  // For MetaMask and others, use the main ethereum provider
+  // Even if Phantom is present, window.ethereum should still work
   if (walletId === 'metamask') {
-    // Check if Phantom is overriding - if so, we can't easily get MetaMask
-    if (w.phantom?.ethereum || w.ethereum?.isPhantom) {
-      // Phantom is active, can't get MetaMask directly
-      // Return the provider but user needs to disable Phantom
-      return null;
-    }
-    // Pure MetaMask
-    if (w.ethereum?.isMetaMask && !w.ethereum?.isPhantom) {
+    // Try to get MetaMask specifically
+    if (w.ethereum?.isMetaMask) {
       return w.ethereum;
     }
   }
