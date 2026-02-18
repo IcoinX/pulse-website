@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, createContext, useContext } from 'react';
+import { useAccount, useSignMessage, useDisconnect } from 'wagmi';
 
 interface User {
   id: string;
@@ -20,9 +21,13 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  
+  const { address, isConnected: wagmiConnected } = useAccount();
+  const { signMessageAsync } = useSignMessage();
+  const { disconnect: wagmiDisconnect } = useDisconnect();
 
+  // Check for existing session on mount
   useEffect(() => {
-    // Check for existing session
     const token = localStorage.getItem('pulse_token');
     const savedUser = localStorage.getItem('pulse_user');
     
@@ -37,26 +42,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(false);
   }, []);
 
-  const connect = async () => {
+  // Auto-authenticate when wallet connects
+  useEffect(() => {
+    if (wagmiConnected && address && !user) {
+      authenticateWallet(address);
+    }
+  }, [wagmiConnected, address]);
+
+  const authenticateWallet = async (wallet_address: string) => {
     setIsLoading(true);
     try {
-      // Check if MetaMask is installed
-      if (typeof window === 'undefined' || !window.ethereum) {
-        alert('Please install MetaMask or use a Web3 browser');
-        return;
-      }
-
-      // Request accounts
-      const accounts = await window.ethereum.request({
-        method: 'eth_requestAccounts'
-      });
-
-      if (!accounts || accounts.length === 0) {
-        throw new Error('No accounts found');
-      }
-
-      const wallet_address = accounts[0];
-
       // Get nonce from server
       const nonceRes = await fetch('/api/auth/nonce', {
         method: 'POST',
@@ -73,10 +68,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Sign message
       const message = `Sign in to PULSE Protocol\n\nWallet: ${wallet_address}\nNonce: ${nonce}\n\nThis signature proves ownership of your wallet.`;
       
-      const signature = await window.ethereum.request({
-        method: 'personal_sign',
-        params: [message, wallet_address]
-      });
+      const signature = await signMessageAsync({ message });
 
       // Verify signature
       const verifyRes = await fetch('/api/auth/verify', {
@@ -102,16 +94,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     } catch (err: any) {
       console.error('Connection error:', err);
-      alert(err.message || 'Failed to connect');
+      // Don't show alert here - let RainbowKit handle the UI
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const connect = async () => {
+    // RainbowKit handles the connect button UI
+    // This function is called when user clicks "Connect Wallet"
+    // The actual wallet connection is handled by RainbowKit
   };
 
   const disconnect = () => {
     localStorage.removeItem('pulse_token');
     localStorage.removeItem('pulse_user');
     setUser(null);
+    wagmiDisconnect();
     window.dispatchEvent(new CustomEvent('pulse:disconnected'));
   };
 
@@ -135,5 +134,3 @@ export function useAuth() {
   }
   return context;
 }
-
-// Window interface for MetaMask is declared in types/window.d.ts
