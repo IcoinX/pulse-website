@@ -3,10 +3,19 @@
 import * as React from 'react';
 import {
   RainbowKitProvider,
-  getDefaultConfig,
+  connectorsForWallets,
   darkTheme,
 } from '@rainbow-me/rainbowkit';
-import { WagmiProvider } from 'wagmi';
+import {
+  rainbowWallet,
+  walletConnectWallet,
+  metaMaskWallet,
+  phantomWallet,
+  coinbaseWallet,
+  braveWallet,
+  injectedWallet,
+} from '@rainbow-me/rainbowkit/wallets';
+import { createConfig, WagmiProvider } from 'wagmi';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 // Define chains inline to avoid type issues
@@ -36,11 +45,46 @@ const baseSepolia = {
   },
 } as const;
 
-const config = getDefaultConfig({
-  appName: 'PULSE Protocol',
-  projectId: 'PULSE_PROTOCOL_WALLET_CONNECT', // WalletConnect project ID (optional but recommended)
-  chains: [base, baseSepolia],
+const chains = [base, baseSepolia] as const;
+
+const projectId = 'PULSE_PROTOCOL_WALLET_CONNECT';
+
+const connectors = connectorsForWallets(
+  [
+    {
+      groupName: 'Popular',
+      wallets: [
+        metaMaskWallet,
+        phantomWallet,
+        coinbaseWallet,
+        rainbowWallet,
+      ],
+    },
+    {
+      groupName: 'More',
+      wallets: [
+        walletConnectWallet,
+        braveWallet,
+        injectedWallet,
+      ],
+    },
+  ],
+  {
+    appName: 'PULSE Protocol',
+    projectId,
+  }
+);
+
+import { http } from 'wagmi';
+
+const config = createConfig({
+  connectors,
+  chains,
   ssr: true,
+  transports: {
+    [base.id]: http(),
+    [baseSepolia.id]: http(),
+  },
 });
 
 const queryClient = new QueryClient();
