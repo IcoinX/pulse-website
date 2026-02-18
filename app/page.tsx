@@ -43,8 +43,8 @@ export default async function Home({ searchParams }: PageProps) {
         query = query.or('source_type.eq.AGENT,title.ilike.%deploy%,title.ilike.%launch%');
         break;
       case 'trending':
-        // Trending = high validation score or multiple sources
-        query = query.or('validation_score.gte.80,source_count.gte.2');
+        // Trending = verified events (highest trust) + recent
+        query = query.eq('verification_status', 'VERIFIED');
         break;
       case 'research':
         // Research = MEDIA type or detailed content
@@ -92,7 +92,7 @@ export default async function Home({ searchParams }: PageProps) {
     const { count: trendingCount } = await supabase
       .from('events')
       .select('*', { count: 'exact', head: true })
-      .or('validation_score.gte.80,source_count.gte.2');
+      .eq('verification_status', 'VERIFIED');
     
     const { count: researchCount } = await supabase
       .from('events')

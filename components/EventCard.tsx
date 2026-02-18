@@ -11,11 +11,8 @@ interface Event {
   created_at: string;
   verification_status?: 'VERIFIED' | 'CHALLENGED' | 'UNVERIFIED';
   verification_reason?: string;
-  impact_market?: number;
-  impact_narrative?: number;
-  impact_tech?: number;
-  validation_score?: number;
-  source_count?: number;
+  agent_slug?: string;
+  agent_symbol?: string;
 }
 
 interface EventCardProps {
@@ -63,8 +60,8 @@ function TimeDisplay({ timestamp }: { timestamp: string }) {
   );
 }
 
-// Verification badge
-function VerificationBadge({ status, reason }: { status: 'VERIFIED' | 'CHALLENGED' | 'UNVERIFIED'; reason?: string }) {
+// Verification badge - uses DB field directly
+function VerificationBadge({ status, reason }: { status?: 'VERIFIED' | 'CHALLENGED' | 'UNVERIFIED'; reason?: string }) {
   const colors = {
     VERIFIED: { bg: 'rgba(34, 197, 94, 0.1)', text: '#22C55E', border: 'rgba(34, 197, 94, 0.3)' },
     CHALLENGED: { bg: 'rgba(245, 158, 11, 0.1)', text: '#F59E0B', border: 'rgba(245, 158, 11, 0.3)' },
@@ -77,11 +74,13 @@ function VerificationBadge({ status, reason }: { status: 'VERIFIED' | 'CHALLENGE
     UNVERIFIED: '○ Unverified'
   };
 
-  const style = colors[status];
+  const finalStatus = status || 'UNVERIFIED';
+  const style = colors[finalStatus];
+  const label = labels[finalStatus];
 
   return (
     <div 
-      title={reason}
+      title={reason || 'Awaiting verification'}
       style={{
         display: 'inline-flex',
         alignItems: 'center',
@@ -93,10 +92,10 @@ function VerificationBadge({ status, reason }: { status: 'VERIFIED' | 'CHALLENGE
         borderRadius: '20px',
         fontSize: '11px',
         fontWeight: 500,
-        cursor: reason ? 'help' : 'default'
+        cursor: 'help'
       }}
     >
-      {labels[status]}
+      {label}
     </div>
   );
 }
@@ -135,46 +134,9 @@ function SourceBadge({ sourceType }: { sourceType: string }) {
   );
 }
 
-// Impact score display
-function ImpactScore({ market = 0, narrative = 0, tech = 0 }: { market?: number; narrative?: number; tech?: number }) {
-  const getColor = (score: number) => {
-    if (score >= 80) return '#EF4444';
-    if (score >= 60) return '#F59E0B';
-    if (score >= 40) return '#EAB308';
-    return '#3B82F6';
-  };
-
-  return (
-    <div style={{ display: 'flex', gap: '8px', fontSize: '10px' }}>
-      {market > 0 && (
-        <span style={{ color: getColor(market) }}>M:{market}</span>
-      )}
-      {narrative > 0 && (
-        <span style={{ color: getColor(narrative) }}>N:{narrative}</span>
-      )}
-      {tech > 0 && (
-        <span style={{ color: getColor(tech) }}>T:{tech}</span>
-      )}
-    </div>
-  );
-}
-
 export default function EventCard({ event }: EventCardProps) {
-  // Determine verification status from event data
-  const getVerificationStatus = (): { status: 'VERIFIED' | 'CHALLENGED' | 'UNVERIFIED'; reason: string } => {
-    if (event.status === 'challenged') {
-      return { status: 'CHALLENGED', reason: 'Under dispute - validator review pending' };
-    }
-    if (event.source_count && event.source_count >= 2 && (event.validation_score || 0) >= 75) {
-      return { status: 'VERIFIED', reason: `${event.source_count} sources + high score` };
-    }
-    if ((event.validation_score || 0) >= 85) {
-      return { status: 'VERIFIED', reason: 'High confidence - protocol verified' };
-    }
-    return { status: 'UNVERIFIED', reason: 'Awaiting additional validation' };
-  };
-
-  const verification = getVerificationStatus();
+  // Use verification_status directly from DB
+  const verificationStatus = event.verification_status || 'UNVERIFIED';
 
   // Get status color
   const getStatusStyle = (status: string) => {
@@ -221,7 +183,10 @@ export default function EventCard({ event }: EventCardProps) {
       }}>
         <TimeDisplay timestamp={event.created_at} />
         <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-          <VerificationBadge status={verification.status} reason={verification.reason} />
+          <VerificationBadge 
+            status={verificationStatus} 
+            reason={event.verification_reason} 
+          />
           <SourceBadge sourceType={event.source_type} />
           <span style={{
             padding: '3px 10px',
@@ -249,40 +214,47 @@ export default function EventCard({ event }: EventCardProps) {
         {event.title}
       </h3>
 
-      {/* Summary if exists */}
-      {event.summary && (
-        <p style={{
-          margin: '0 0 12px 0',
-          fontSize: '13px',
-          color: '#888',
-          lineHeight: 1.5
+      {/* Agent info if available */}
+      {(event.agent_slug || event.agent_symbol) && (
+        <div style={{
+          display: 'flex',
+          gap: '8px',
+          marginBottom: '12px'
         }}>
-          {event.summary}
-        </p>
+          {event.agent_symbol && (
+            <span style={{
+              padding: '2px 8px',
+              background: 'rgba(168, 85, 247, 0.1)',
+              color: '#A855F7',
+              borderRadius: '4px',
+              fontSize: '11px',
+              fontWeight: 500
+            }}>
+              ${event.agent_symbol}
+            </span>
+          )}
+          {event.agent_slug && (
+            <span style={{
+              fontSize: '12px',
+              color: '#666'
+            }}>
+              {event.agent_slug}
+            </span>
+          )}
+        </div>
       )}
 
-      {/* Footer: Impact + Meta */}
+      {/* Footer: ID only (no fake scores) */}
       <div style={{
         display: 'flex',
-        justifyContent: 'space-between',
+        justifyContent: 'flex-end',
         alignItems: 'center',
         paddingTop: '12px',
         borderTop: '1px solid #222'
       }}>
-        <ImpactScore 
-          market={event.impact_market} 
-          narrative={event.impact_narrative} 
-          tech={event.impact_tech} 
-        />
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '11px', color: '#666' }}>
-          {event.validation_score ? (
-            <span>Score: {event.validation_score}</span>
-          ) : null}
-          {event.source_count ? (
-            <span>Sources: {event.source_count}</span>
-          ) : null}
-          <span>#{event.event_id}</span>
-        </div>
+        <span style={{ fontSize: '11px', color: '#666' }}>
+          #{event.event_id}
+        </span>
       </div>
     </div>
   );

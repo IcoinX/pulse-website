@@ -11,19 +11,107 @@ interface HotItem {
 }
 
 interface HotRightNowProps {
-  items?: HotItem[];
+  minEvents?: number;
 }
 
-// Mock data for hot items - in production this would come from API
-const mockHotItems: HotItem[] = [
-  { rank: 1, title: 'GPT-5 Agent Capabilities', score: 98, change24h: 45, id: '1' },
-  { rank: 2, title: 'Base Sepolia Activity', score: 87, change24h: 23, id: '2' },
-  { rank: 3, title: 'ElizaOS Multi-Agent', score: 85, change24h: 156, id: '3' },
-  { rank: 4, title: 'Virtuals Protocol v2', score: 72, change24h: 12, id: '4' },
-  { rank: 5, title: 'Clara AI Framework', score: 68, change24h: 34, id: '5' },
-];
+export default function HotRightNow({ minEvents = 5 }: HotRightNowProps) {
+  const [items, setItems] = useState<HotItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [hasEnoughData, setHasEnoughData] = useState(false);
 
-export default function HotRightNow({ items = mockHotItems }: HotRightNowProps) {
+  useEffect(() => {
+    // Fetch trending items from API
+    async function fetchTrending() {
+      try {
+        const response = await fetch('/api/trending');
+        if (response.ok) {
+          const data = await response.json();
+          if (data.items && data.items.length >= minEvents) {
+            setItems(data.items.slice(0, 5));
+            setHasEnoughData(true);
+          } else {
+            setHasEnoughData(false);
+          }
+        } else {
+          setHasEnoughData(false);
+        }
+      } catch (err) {
+        setHasEnoughData(false);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchTrending();
+  }, [minEvents]);
+
+  if (loading) {
+    return (
+      <div style={{
+        padding: '20px',
+        background: '#111',
+        borderRadius: '12px',
+        border: '1px solid #222'
+      }}>
+        <div style={{ textAlign: 'center', color: '#666', fontSize: '14px' }}>
+          Loading...
+        </div>
+      </div>
+    );
+  }
+
+  if (!hasEnoughData) {
+    return (
+      <div style={{
+        padding: '20px',
+        background: '#111',
+        borderRadius: '12px',
+        border: '1px solid #222'
+      }}>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          marginBottom: '16px'
+        }}>
+          <span style={{ fontSize: '16px' }}>🔥</span>
+          <h3 style={{
+            margin: 0,
+            fontSize: '14px',
+            fontWeight: 600,
+            color: '#fff'
+          }}>
+            Hot Right Now
+          </h3>
+        </div>
+        
+        <div style={{
+          padding: '24px',
+          textAlign: 'center',
+          color: '#666'
+        }}>
+          <p style={{ margin: '0 0 8px 0', fontSize: '14px' }}>
+            Warming up...
+          </p>
+          <p style={{ margin: 0, fontSize: '12px', color: '#555' }}>
+            Not enough data yet
+          </p>
+        </div>
+        
+        <div style={{
+          marginTop: '12px',
+          paddingTop: '12px',
+          borderTop: '1px solid #222',
+          fontSize: '11px',
+          color: '#555',
+          textAlign: 'center'
+        }}>
+          Need {minEvents}+ verified events
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={{
       padding: '20px',
