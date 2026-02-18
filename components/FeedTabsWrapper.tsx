@@ -5,7 +5,7 @@ import FeedTabs, { FeedTab } from './FeedTabs';
 
 interface FeedTabsWrapperProps {
   activeTab: FeedTab;
-  counts: {
+  tabCounts?: {
     live: number;
     new: number;
     trending: number;
@@ -13,25 +13,16 @@ interface FeedTabsWrapperProps {
   };
 }
 
-export default function FeedTabsWrapper({ activeTab, counts }: FeedTabsWrapperProps) {
+export default function FeedTabsWrapper({ activeTab, tabCounts }: FeedTabsWrapperProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const category = searchParams.get('category') || 'all';
 
-  const handleTabChange = (tab: FeedTab) => {
-    const params = new URLSearchParams(searchParams);
+  // Client-side handler for smooth tab switching
+  const handleTabClick = (tab: FeedTab) => {
+    const params = new URLSearchParams(searchParams.toString());
     params.set('tab', tab);
-    if (category !== 'all') {
-      params.set('category', category);
-    }
-    router.push(`/?${params.toString()}`);
+    router.push(`?${params.toString()}`, { scroll: false });
   };
 
-  return (
-    <FeedTabs 
-      activeTab={activeTab} 
-      onTabChange={handleTabChange}
-      counts={counts}
-    />
-  );
+  return <FeedTabs activeTab={activeTab} tabCounts={tabCounts} />;
 }

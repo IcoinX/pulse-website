@@ -2,6 +2,9 @@ import { createClient } from '@supabase/supabase-js';
 import Header from '@/components/Header';
 import EventCard from '@/components/EventCard';
 import LiveStats from '@/components/LiveStats';
+import HotRightNow from '@/components/HotRightNow';
+import FeedTabsWrapper from '@/components/FeedTabsWrapper';
+import { FeedTab } from '@/components/FeedTabs';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,21 +14,76 @@ const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 interface PageProps {
-  searchParams: { category?: string };
+  searchParams: { category?: string; tab?: string };
 }
 
 export default async function Home({ searchParams }: PageProps) {
   const category = searchParams.category || 'all';
+  const activeTab = (searchParams.tab as FeedTab) || 'live';
   
   let events: any[] = [];
   let error: string | null = null;
+  let tabCounts = { live: 0, new: 0, trending: 0, research: 0 };
 
   try {
+    // Get counts for each tab
+    const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const lastWeek = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    
+    // Live count (last 24h)
+    const { count: liveCount } = await supabase
+      .from('events')
+      .select('*', { count: 'exact', head: true })
+      .gte('created_at', yesterday);
+    
+    // New count (AGENT type)
+    const { count: newCount } = await supabase
+      .from('events')
+      .select('*', { count: 'exact', head: true })
+      .eq('source_type', 'AGENT');
+    
+    // Trending count (verified events)
+    const { count: trendingCount } = await supabase
+      .from('events')
+      .select('*', { count: 'exact', head: true })
+      .eq('verification_status', 'VERIFIED')
+      .gte('created_at', lastWeek);
+    
+    // Research count (MEDIA type)
+    const { count: researchCount } = await supabase
+      .from('events')
+      .select('*', { count: 'exact', head: true })
+      .eq('source_type', 'MEDIA');
+
+    tabCounts = {
+      live: liveCount || 0,
+      new: newCount || 0,
+      trending: trendingCount || 0,
+      research: researchCount || 0
+    };
+
+    // Base query for events
     let query = supabase
       .from('events')
       .select('*')
       .order('created_at', { ascending: false })
       .limit(50);
+    
+    // Apply tab filters
+    switch (activeTab) {
+      case 'live':
+        query = query.gte('created_at', yesterday);
+        break;
+      case 'new':
+        query = query.or('source_type.eq.AGENT,title.ilike.%deploy%,title.ilike.%launch%');
+        break;
+      case 'trending':
+        query = query.eq('verification_status', 'VERIFIED').gte('created_at', lastWeek);
+        break;
+      case 'research':
+        query = query.eq('source_type', 'MEDIA');
+        break;
+    }
     
     // Filter by category if specified
     if (category !== 'all') {
@@ -61,14 +119,8 @@ export default async function Home({ searchParams }: PageProps) {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 32 }}>
           {/* Feed */}
           <div>
-            <div style={{ marginBottom: 24 }}>
-              <h2 style={{ margin: '0 0 8px 0', fontSize: 20, fontWeight: 600 }}>
-                Latest Intelligence
-              </h2>
-              <p style={{ margin: 0, color: '#666', fontSize: 14 }}>
-                {events.length} events {category !== 'all' ? `in ${category}` : 'tracked'}
-              </p>
-            </div>
+            {/* Tabs */}
+            <FeedTabsWrapper activeTab={activeTab} tabCounts={tabCounts} />
             
             {error && (
               <div style={{ 
@@ -91,7 +143,7 @@ export default async function Home({ searchParams }: PageProps) {
                   border: '2px dashed #222',
                   borderRadius: 12
                 }}>
-                  <p>No events found {category !== 'all' ? `in ${category}` : ''}.</p>
+                  <p>No events found in this tab.</p>
                 </div>
               ) : (
                 events.map((event) => (
@@ -103,6 +155,9 @@ export default async function Home({ searchParams }: PageProps) {
           
           {/* Sidebar */}
           <aside style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {/* Hot Right Now */}
+            <HotRightNow />
+
             {/* Live Stats */}
             <div style={{ 
               padding: 20, 
@@ -149,5 +204,3 @@ export default async function Home({ searchParams }: PageProps) {
     </div>
   );
 }
-// Tue Feb 17 23:22:09 CET 2026
-// vercel-cache-bust

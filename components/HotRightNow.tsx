@@ -1,24 +1,23 @@
 'use client';
 
-// Simplified version - no dynamic fetch to avoid hydration issues
 export default function HotRightNow() {
   return (
     <div style={{
-      padding: '20px',
+      padding: 20,
       background: '#111',
-      borderRadius: '12px',
+      borderRadius: 12,
       border: '1px solid #222'
     }}>
       <div style={{
         display: 'flex',
         alignItems: 'center',
-        gap: '8px',
-        marginBottom: '16px'
+        gap: 8,
+        marginBottom: 16
       }}>
-        <span style={{ fontSize: '16px' }}>🔥</span>
+        <span style={{ fontSize: 16 }}>🔥</span>
         <h3 style={{
           margin: 0,
-          fontSize: '14px',
+          fontSize: 14,
           fontWeight: 600,
           color: '#fff'
         }}>
@@ -27,23 +26,23 @@ export default function HotRightNow() {
       </div>
       
       <div style={{
-        padding: '24px',
+        padding: 24,
         textAlign: 'center',
         color: '#666'
       }}>
-        <p style={{ margin: '0 0 8px 0', fontSize: '14px' }}>
+        <p style={{ margin: '0 0 8px 0', fontSize: 14 }}>
           Warming up...
         </p>
-        <p style={{ margin: 0, fontSize: '12px', color: '#555' }}>
+        <p style={{ margin: 0, fontSize: 12, color: '#555' }}>
           Not enough data yet
         </p>
       </div>
       
       <div style={{
-        marginTop: '12px',
-        paddingTop: '12px',
+        marginTop: 12,
+        paddingTop: 12,
         borderTop: '1px solid #222',
-        fontSize: '11px',
+        fontSize: 11,
         color: '#555',
         textAlign: 'center'
       }}>
