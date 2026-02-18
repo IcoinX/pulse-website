@@ -10,6 +10,11 @@ export const metadata: Metadata = {
   description: 'PULSE Protocol - A decentralized verification layer for events, signals, and agent intelligence. On-chain verification for the agent economy.',
   keywords: ['AI', 'crypto', 'tech', 'agents', 'protocol', 'verification', 'events', 'decentralized'],
   authors: [{ name: 'PULSE Protocol' }],
+  icons: {
+    icon: '/favicon.svg',
+    shortcut: '/favicon.svg',
+    apple: '/favicon.svg',
+  },
   openGraph: {
     title: 'PULSE | Decentralized Event Verification Protocol',
     description: 'A decentralized verification layer for events, signals, and agent intelligence.',
