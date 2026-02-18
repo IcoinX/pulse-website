@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import EventCard from './EventCard';
 
 interface TrendingItem {
   id: string;
