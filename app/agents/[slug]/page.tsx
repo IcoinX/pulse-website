@@ -436,7 +436,7 @@ export default function AgentDetailPage() {
       const { data: mappedEvents, error: mappedError } = await supabase
         .from('events')
         .select('*')
-        .eq('agent_slug', agent.slug)
+        .eq('agent_slug', agent?.slug)
         .order('created_at', { ascending: false })
         .limit(10);
       
@@ -450,7 +450,7 @@ export default function AgentDetailPage() {
       const { data: titleEvents } = await supabase
         .from('events')
         .select('*')
-        .or(`source_type.eq.AGENT,title.ilike.%${agent.symbol}%,title.ilike.%${agent.name.split(' ')[0]}%`)
+        .or(`source_type.eq.AGENT,title.ilike.%${agent?.symbol}%,title.ilike.%${agent?.name?.split(' ')?.[0]}%`)
         .order('created_at', { ascending: false })
         .limit(10);
       

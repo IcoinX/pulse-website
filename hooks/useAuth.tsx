@@ -136,11 +136,4 @@ export function useAuth() {
   return context;
 }
 
-// Extend Window interface for MetaMask
-declare global {
-  interface Window {
-    ethereum?: {
-      request: (args: { method: string; params?: any[] }) => Promise<any>;
-    };
-  }
-}
+// Window interface for MetaMask is declared in types/window.d.ts

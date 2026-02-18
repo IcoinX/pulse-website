@@ -19,5 +19,5 @@ export async function jwtSign(payload: JWTPayload): Promise<string> {
 
 export async function jwtVerify(token: string): Promise<JWTPayload> {
   const { payload } = await joseJwtVerify(token, JWT_SECRET);
-  return payload as JWTPayload;
+  return payload as unknown as JWTPayload;
 }

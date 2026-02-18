@@ -45,16 +45,13 @@ export default function EventCard({ event }: EventCardProps) {
       href={`/events/${event.event_id}`}
       style={{ textDecoration: 'none' }}
     >
-      <div style={{
+      <div className="event-card" style={{
         padding: 20,
         background: '#111',
         borderRadius: 12,
         border: '1px solid #222',
         cursor: 'pointer',
-        transition: 'all 0.2s',
-        ':hover': {
-          borderColor: '#333'
-        }
+        transition: 'all 0.2s'
       }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 12 }}>
           <span style={{ fontSize: 28 }}>{icons[event.source_type] || '📋'}</span>
