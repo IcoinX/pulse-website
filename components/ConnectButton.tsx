@@ -237,10 +237,14 @@ export default function ConnectButton() {
                     disabled={loading}
                     style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '14px 16px', background: '#222', border: '1px solid #444', borderRadius: '10px', cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.6 : 1 }}
                   >
-                    <span style={{ fontSize: '24px' }}>{wallet.icon}</span>
+                    {wallet.icon.startsWith('data:') ? (
+                      <img src={wallet.icon} alt={wallet.name} style={{ width: '32px', height: '32px', borderRadius: '6px' }} />
+                    ) : (
+                      <span style={{ fontSize: '24px' }}>{wallet.icon}</span>
+                    )}
                     <span style={{ color: '#fff', fontSize: '16px' }}>{wallet.name}</span>
-                    <span style={{ marginLeft: 'auto', fontSize: '10px', color: '#666' }}>
-                      {wallet.rdns}
+                    <span style={{ marginLeft: 'auto', fontSize: '12px', color: '#22C55E', background: 'rgba(34, 197, 94, 0.1)', padding: '4px 8px', borderRadius: '4px' }}>
+                      {loading ? '...' : 'Connect'}
                     </span>
                   </button>
                 ))}
