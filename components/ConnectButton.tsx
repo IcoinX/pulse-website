@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 
 interface WalletOption {
@@ -9,7 +9,7 @@ interface WalletOption {
   icon: string;
   provider?: any;
   detected: boolean;
-  deeplink?: string;
+  isWalletConnect?: boolean;
 }
 
 // Detect all available wallets
@@ -52,30 +52,28 @@ function detectWallets(): { detected: WalletOption[]; all: WalletOption[] } {
     seen.add('phantom');
   }
   
-  // Build complete list with fallbacks
+  // Build complete list
   const allWallets: WalletOption[] = [
-    // Phantom - detected or not
     detectedWallets.find(w => w.id === 'phantom') || 
-      { id: 'phantom', name: 'Phantom', icon: '👻', detected: false, deeplink: 'https://phantom.app/ul/browse/pulseprotocol.co' },
-    
-    // MetaMask - always show with deeplink fallback
+      { id: 'phantom', name: 'Phantom', icon: '👻', detected: false },
     detectedWallets.find(w => w.id === 'metamask') || 
-      { id: 'metamask', name: 'MetaMask', icon: '🦊', detected: false, deeplink: 'https://metamask.app.link/dapp/pulseprotocol.co' },
-    
-    // Coinbase - detected or not
+      { id: 'metamask', name: 'MetaMask', icon: '🦊', detected: false },
     detectedWallets.find(w => w.id === 'coinbase') || 
-      { id: 'coinbase', name: 'Coinbase Wallet', icon: '🔵', detected: false, deeplink: 'https://go.cb-w.com/dapp?cb_url=https%3A%2F%2Fpulseprotocol.co' },
+      { id: 'coinbase', name: 'Coinbase Wallet', icon: '🔵', detected: false },
+    // WalletConnect - always available
+    { id: 'walletconnect', name: 'WalletConnect', icon: '🔗', detected: true, isWalletConnect: true },
   ];
   
   return { detected: detectedWallets, all: allWallets };
 }
 
 export default function ConnectButton() {
-  const { user, isLoading, isConnected, connectWithProvider, disconnect } = useAuth();
+  const { user, isLoading, isConnected, connectWithProvider, connectViaWalletConnect, disconnect } = useAuth();
   const [showModal, setShowModal] = useState(false);
   const [detectedCount, setDetectedCount] = useState(0);
   const [wallets, setWallets] = useState<WalletOption[]>([]);
   const [ready, setReady] = useState(false);
+  const [isConnectingWC, setIsConnectingWC] = useState(false);
 
   useEffect(() => {
     const { detected, all } = detectWallets();
@@ -88,16 +86,22 @@ export default function ConnectButton() {
     return `${address.slice(0, 6)}...${address.slice(-4)}`;
   };
 
-  const handleWalletClick = async (wallet: WalletOption) => {
-    if (wallet.detected && wallet.provider) {
-      // Use injected provider
+  const handleWalletClick = useCallback(async (wallet: WalletOption) => {
+    if (wallet.isWalletConnect) {
+      setIsConnectingWC(true);
+      try {
+        await connectViaWalletConnect();
+        setShowModal(false);
+      } catch (err) {
+        console.error('WalletConnect error:', err);
+      } finally {
+        setIsConnectingWC(false);
+      }
+    } else if (wallet.detected && wallet.provider) {
       setShowModal(false);
       await connectWithProvider(wallet.provider);
-    } else if (wallet.deeplink) {
-      // Use deeplink for mobile/non-detected
-      window.location.href = wallet.deeplink;
     }
-  };
+  }, [connectWithProvider, connectViaWalletConnect]);
 
   if (isLoading && !ready) {
     return (
@@ -204,7 +208,7 @@ export default function ConnectButton() {
             justifyContent: 'center',
             zIndex: 9999,
           }}
-          onClick={() => setShowModal(false)}
+          onClick={() => !isConnectingWC && setShowModal(false)}
         >
           <div
             style={{
@@ -218,85 +222,143 @@ export default function ConnectButton() {
             onClick={(e) => e.stopPropagation()}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h3 style={{ margin: 0, color: '#fff', fontSize: '18px' }}>Connect Wallet</h3>
-              <button
-                onClick={() => setShowModal(false)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: '#666',
-                  fontSize: '24px',
-                  cursor: 'pointer',
-                }}
-              >
-                ×
-              </button>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {wallets.map((wallet) => (
+              <h3 style={{ margin: 0, color: '#fff', fontSize: '18px' }}>
+                {isConnectingWC ? 'Connecting...' : 'Connect Wallet'}
+              </h3>
+              {!isConnectingWC && (
                 <button
-                  key={wallet.id}
-                  onClick={() => handleWalletClick(wallet)}
+                  onClick={() => setShowModal(false)}
                   style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '12px',
-                    padding: '14px 16px',
-                    background: wallet.detected ? '#222' : '#1a1a1a',
-                    border: `1px solid ${wallet.detected ? '#444' : '#333'}`,
-                    borderRadius: '10px',
+                    background: 'none',
+                    border: 'none',
+                    color: '#666',
+                    fontSize: '24px',
                     cursor: 'pointer',
-                    opacity: wallet.detected ? 1 : 0.7,
-                    transition: 'all 0.2s',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = wallet.detected ? '#333' : '#222';
-                    e.currentTarget.style.borderColor = wallet.detected ? '#555' : '#444';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = wallet.detected ? '#222' : '#1a1a1a';
-                    e.currentTarget.style.borderColor = wallet.detected ? '#444' : '#333';
                   }}
                 >
-                  <span style={{ fontSize: '24px' }}>{wallet.icon}</span>
-                  <span style={{ color: '#fff', fontSize: '16px', fontWeight: 500 }}>
-                    {wallet.name}
-                  </span>
-                  {wallet.detected ? (
-                    <span style={{ 
-                      marginLeft: 'auto', 
-                      fontSize: '12px', 
-                      color: '#22C55E',
-                      background: 'rgba(34, 197, 197, 94, 0.1)',
-                      padding: '4px 8px',
-                      borderRadius: '4px',
-                    }}>
-                      Detected
-                    </span>
-                  ) : (
-                    <span style={{ 
-                      marginLeft: 'auto', 
-                      fontSize: '12px', 
-                      color: '#888',
-                    }}>
-                      Open App
-                    </span>
-                  )}
+                  ×
                 </button>
-              ))}
+              )}
             </div>
 
-            <p style={{ 
-              marginTop: '16px', 
-              fontSize: '12px', 
-              color: '#666', 
-              textAlign: 'center' 
-            }}>
-              {detectedCount > 0 
-                ? `${detectedCount} wallet${detectedCount > 1 ? 's' : ''} detected in browser` 
-                : 'Click a wallet to open its app'}
-            </p>
+            {isConnectingWC ? (
+              <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+                <div style={{ 
+                  width: '48px', 
+                  height: '48px', 
+                  border: '3px solid #333',
+                  borderTop: '3px solid #3B82F6',
+                  borderRadius: '50%',
+                  animation: 'spin 1s linear infinite',
+                  margin: '0 auto 20px'
+                }} />
+                <p style={{ color: '#888', fontSize: '14px' }}>
+                  Check your wallet app for the connection request...
+                </p>
+                <style jsx>{`
+                  @keyframes spin {
+                    0% { transform: rotate(0deg); }
+                    100% { transform: rotate(360deg); }
+                  }
+                `}</style>
+              </div>
+            ) : (
+              <>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {wallets.map((wallet) => (
+                    <button
+                      key={wallet.id}
+                      onClick={() => handleWalletClick(wallet)}
+                      disabled={!wallet.detected && !wallet.isWalletConnect}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '12px',
+                        padding: '14px 16px',
+                        background: wallet.detected || wallet.isWalletConnect ? '#222' : '#1a1a1a',
+                        border: `1px solid ${wallet.detected || wallet.isWalletConnect ? '#444' : '#333'}`,
+                        borderRadius: '10px',
+                        cursor: wallet.detected || wallet.isWalletConnect ? 'pointer' : 'not-allowed',
+                        opacity: wallet.detected || wallet.isWalletConnect ? 1 : 0.5,
+                        transition: 'all 0.2s',
+                      }}
+                      onMouseEnter={(e) => {
+                        if (wallet.detected || wallet.isWalletConnect) {
+                          e.currentTarget.style.background = '#333';
+                          e.currentTarget.style.borderColor = '#555';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = wallet.detected || wallet.isWalletConnect ? '#222' : '#1a1a1a';
+                        e.currentTarget.style.borderColor = wallet.detected || wallet.isWalletConnect ? '#444' : '#333';
+                      }}
+                    >
+                      <span style={{ fontSize: '24px' }}>{wallet.icon}</span>
+                      <span style={{ color: '#fff', fontSize: '16px', fontWeight: 500 }}>
+                        {wallet.name}
+                      </span>
+                      {wallet.isWalletConnect ? (
+                        <span style={{ 
+                          marginLeft: 'auto', 
+                          fontSize: '11px', 
+                          color: '#fff',
+                          background: '#3B82F6',
+                          padding: '4px 8px',
+                          borderRadius: '4px',
+                        }}>
+                          Universal
+                        </span>
+                      ) : wallet.detected ? (
+                        <span style={{ 
+                          marginLeft: 'auto', 
+                          fontSize: '12px', 
+                          color: '#22C55E',
+                          background: 'rgba(34, 197, 94, 0.1)',
+                          padding: '4px 8px',
+                          borderRadius: '4px',
+                        }}>
+                          Detected
+                        </span>
+                      ) : (
+                        <span style={{ 
+                          marginLeft: 'auto', 
+                          fontSize: '12px', 
+                          color: '#666',
+                        }}>
+                          Not available
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+
+                {detectedCount === 1 && detectedCount < 3 && (
+                  <div style={{ 
+                    marginTop: '16px', 
+                    padding: '12px',
+                    background: 'rgba(59, 130, 246, 0.1)',
+                    borderRadius: '8px',
+                    border: '1px solid rgba(59, 130, 246, 0.3)',
+                  }}>
+                    <p style={{ color: '#93C5FD', fontSize: '12px', margin: 0 }}>
+                      💡 <strong>Phantom bloque les autres wallets?</strong><br/>
+                      Utilise <strong>WalletConnect</strong> - ça marche avec tous les wallets, même quand Phantom est installé.
+                    </p>
+                  </div>
+                )}
+
+                <p style={{ 
+                  marginTop: '16px', 
+                  fontSize: '12px', 
+                  color: '#666', 
+                  textAlign: 'center' 
+                }}>
+                  {detectedCount > 0 
+                    ? `${detectedCount} browser wallet${detectedCount > 1 ? 's' : ''} detected` 
+                    : 'Use WalletConnect to connect any wallet'}
+                </p>
+              </>
+            )}
           </div>
         </div>
       )}
