@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import VerificationBadge, { type VerificationStatus } from './VerificationBadge';
+import SignalBadge, { parseSignalsFromReason } from './SignalBadge';
 
 interface Event {
   event_id: number;
@@ -12,7 +13,7 @@ interface Event {
   verification_reason?: string;
   verified_at?: string;
   verified_by?: string;
-  agent_origin?: 'VIRTUALS' | 'BANKR' | 'CLANKER' | 'NATIVE' | null;
+  agent_origin?: 'VIRTUALS' | 'BANKR' | 'CLANKER' | 'NATIVE' | 'NARRATIVE' | 'CONVERGENCE' | null;
 }
 
 interface EventCardProps {
@@ -59,7 +60,6 @@ function getAgeBadge(dateStr: string): { text: string; color: string } | null {
   if (diffDays < 7) {
     return { text: 'NEW', color: '#22c55e' }; // Green
   }
-  // Don't show Established badge by default (cleaner UI)
   return null;
 }
 
@@ -82,15 +82,13 @@ export default function EventCard({ event, showScore, score }: EventCardProps) {
     'REJECTED': '#9ca3af'
   };
 
-  // Use verification_status if available, fallback to old status
   const verifStatus = event.verification_status || 'PENDING';
-  
-  // Get timestamps
   const relativeTime = getRelativeTime(event.created_at);
   const absoluteTime = getAbsoluteTime(event.created_at);
-  
-  // Get age badge
   const ageBadge = getAgeBadge(event.created_at);
+  
+  // Parse signals from verification_reason
+  const signals = parseSignalsFromReason(event.verification_reason);
 
   return (
     <Link 
@@ -118,17 +116,14 @@ export default function EventCard({ event, showScore, score }: EventCardProps) {
               {event.title}
             </h3>
           </div>
-          {showScore && score !== undefined && (
-            <span style={{
-              padding: '4px 8px',
-              background: '#2563eb',
-              borderRadius: 6,
-              fontSize: 12,
-              fontWeight: 600,
-              color: '#fff'
-            }}>
-              {score}
-            </span>
+          
+          {/* Convergence Score Badge (if available) */}
+          {signals.convergence && (
+            <SignalBadge
+              type="convergence"
+              value={signals.convergence.score}
+              tooltip={`V/M/S/N → ${signals.convergence.score.toFixed(1)} (${signals.convergence.class})`}
+            />
           )}
         </div>
         
@@ -154,19 +149,23 @@ export default function EventCard({ event, showScore, score }: EventCardProps) {
             {event.source_type}
           </span>
           
-          {/* Origin Badge (Virtuals/Bankr/Clanker) */}
+          {/* Origin Badge */}
           {event.agent_origin && (
             <span style={{
               padding: '4px 10px',
               background: event.agent_origin === 'VIRTUALS' ? '#8b5cf622' : 
                          event.agent_origin === 'BANKR' ? '#22c55e22' : 
-                         event.agent_origin === 'CLANKER' ? '#f59e0b22' : '#1a1a1a',
+                         event.agent_origin === 'CLANKER' ? '#f59e0b22' : 
+                         event.agent_origin === 'CONVERGENCE' ? '#ec489922' :
+                         event.agent_origin === 'NARRATIVE' ? '#a855f722' : '#1a1a1a',
               borderRadius: 6,
               fontSize: 11,
               fontWeight: 600,
               color: event.agent_origin === 'VIRTUALS' ? '#8b5cf6' : 
                      event.agent_origin === 'BANKR' ? '#22c55e' : 
-                     event.agent_origin === 'CLANKER' ? '#f59e0b' : '#888',
+                     event.agent_origin === 'CLANKER' ? '#f59e0b' : 
+                     event.agent_origin === 'CONVERGENCE' ? '#ec4899' :
+                     event.agent_origin === 'NARRATIVE' ? '#a855f7' : '#888',
               textTransform: 'uppercase',
               letterSpacing: '0.5px'
             }}>
@@ -184,7 +183,7 @@ export default function EventCard({ event, showScore, score }: EventCardProps) {
             />
           </div>
           
-          {/* Age Badge (NEW/Established) */}
+          {/* Age Badge */}
           {ageBadge && (
             <span style={{
               padding: '4px 10px',
@@ -199,21 +198,7 @@ export default function EventCard({ event, showScore, score }: EventCardProps) {
             </span>
           )}
           
-          {/* Legacy status badge (if different from verification) */}
-          {event.status !== 'PENDING' && event.status !== verifStatus && (
-            <span style={{
-              padding: '4px 10px',
-              background: `${statusColors[event.status]}22`,
-              borderRadius: 6,
-              fontSize: 12,
-              color: statusColors[event.status] || '#888',
-              fontWeight: 500
-            }}>
-              {event.status}
-            </span>
-          )}
-          
-          {/* Timestamp with tooltip-style display */}
+          {/* Timestamp */}
           <span 
             style={{ 
               fontSize: 12, 
@@ -226,6 +211,39 @@ export default function EventCard({ event, showScore, score }: EventCardProps) {
             {relativeTime}
           </span>
         </div>
+        
+        {/* Signal Badges Row (Market/Smart/Narrative) */}
+        {(signals.market || signals.smart || signals.narrative) && (
+          <div style={{ 
+            display: 'flex', 
+            gap: 6, 
+            marginTop: 10,
+            paddingTop: 10,
+            borderTop: '1px solid #222'
+          }}>
+            {signals.market && (
+              <SignalBadge 
+                type="market" 
+                strength={signals.market.strength}
+                tooltip={`Market: ${signals.market.strength} strength`}
+              />
+            )}
+            {signals.smart && (
+              <SignalBadge 
+                type="smart" 
+                strength={signals.smart.strength}
+                tooltip={`Smart money: ${signals.smart.strength}`}
+              />
+            )}
+            {signals.narrative && (
+              <SignalBadge 
+                type="narrative" 
+                strength={signals.narrative.strength}
+                tooltip={`Narrative: ${signals.narrative.strength} (${signals.narrative.velocity || 0}% velocity)`}
+              />
+            )}
+          </div>
+        )}
       </div>
     </Link>
   );

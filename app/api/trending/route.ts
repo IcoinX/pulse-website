@@ -70,7 +70,6 @@ export async function GET() {
       const ageHours = (now - eventTime) / (1000 * 60 * 60);
       
       // Recency score: linear decay over 7 days (168h)
-      // Formula: 100 - (age_hours * 100/168)
       const recencyScore = Math.max(0, 100 - (ageHours * (100 / WINDOW_HOURS)));
       
       // Source weight (default 40 if unknown)
@@ -82,9 +81,25 @@ export async function GET() {
       // Verification multiplier: VERIFIED = 1.0, PENDING = 0.6
       const verificationMultiplier = event.verification_status === 'VERIFIED' ? 1.0 : 0.6;
       
-      // Final score: recency 50% + source 30% + origin 20%, weighted by verification
-      const rawScore = (recencyScore * 0.5) + (sourceScore * 0.3) + (originBonus * 0.2);
-      const score = Math.round(rawScore * verificationMultiplier);
+      // Parse convergence score if available
+      let convergenceScore: number | undefined;
+      let convergenceClass: string | undefined;
+      const convergenceMatch = event.verification_reason?.match(/→\s*([\d.]+)\s*\(([A-Z]+)\)/);
+      if (convergenceMatch) {
+        convergenceScore = parseFloat(convergenceMatch[1]);
+        convergenceClass = convergenceMatch[2];
+      }
+      
+      // Final score: if convergence available, boost by it; otherwise use legacy formula
+      let score: number;
+      if (convergenceScore && convergenceScore >= 4.0) {
+        // Boost events with strong convergence
+        score = Math.round((recencyScore * 0.4) + (convergenceScore * 10) + (originBonus * 0.2));
+      } else {
+        // Legacy formula
+        const rawScore = (recencyScore * 0.5) + (sourceScore * 0.3) + (originBonus * 0.2);
+        score = Math.round(rawScore * verificationMultiplier);
+      }
       
       // Determine age badge
       const ageDays = ageHours / 24;
@@ -96,6 +111,8 @@ export async function GET() {
         source_type: event.source_type,
         agent_origin: event.agent_origin,
         score,
+        convergenceScore,
+        convergenceClass,
         recencyScore: Math.round(recencyScore),
         sourceScore,
         originBonus,
@@ -107,7 +124,7 @@ export async function GET() {
       };
     });
 
-    // Sort by score descending
+    // Sort by score descending (boosted by convergence)
     const sortedItems = items
       .sort((a, b) => b.score - a.score)
       .slice(0, 10)
