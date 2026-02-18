@@ -111,13 +111,32 @@ export default function ConnectButton() {
   const { providers, isReady } = useEip6963Providers();
 
   // Convert providers to wallet list
-  const wallets: Wallet[] = providers.map(p => ({
-    id: p.info.rdns,
-    name: p.info.name,
-    icon: p.info.icon,
-    rdns: p.info.rdns,
-    provider: p.provider
-  }));
+  const wallets: Wallet[] = providers.map(p => {
+    // Ensure name is never empty and never a data URI
+    let name = p.info?.name || '';
+    if (!name || name.startsWith('data:')) {
+      // Fallback based on rdns
+      if (p.info.rdns === 'io.metamask') name = 'MetaMask';
+      else if (p.info.rdns === 'app.phantom') name = 'Phantom';
+      else if (p.info.rdns === 'com.coinbase.wallet') name = 'Coinbase Wallet';
+      else name = 'Wallet';
+    }
+    
+    // Ensure icon is valid (either data URI or emoji)
+    let icon = p.info?.icon || '';
+    if (!icon && p.info.rdns === 'io.metamask') icon = '🦊';
+    else if (!icon && p.info.rdns === 'app.phantom') icon = '👻';
+    else if (!icon && p.info.rdns === 'com.coinbase.wallet') icon = '🔵';
+    else if (!icon) icon = '💼';
+    
+    return {
+      id: p.info.rdns,
+      name,
+      icon,
+      rdns: p.info.rdns,
+      provider: p.provider
+    };
+  });
 
   // Check if already connected
   useEffect(() => {
