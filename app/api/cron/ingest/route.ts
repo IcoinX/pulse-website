@@ -25,7 +25,7 @@ function generateHash(title: string, source: string): string {
     .substring(0, 16);
 }
 
-async function getNextEventId(supabase: ReturnType<typeof createClient>): Promise<number> {
+async function getNextEventId(supabase: any): Promise<number> {
   const { data } = await supabase
     .from('events')
     .select('event_id')
