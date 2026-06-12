@@ -28,13 +28,12 @@ export default async function Home({ searchParams }: PageProps) {
   try {
     // Get counts for each tab
     const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-    const lastWeek = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const lastWeek = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString(); // Extended to 90 days
     
-    // Live count (last 24h)
+    // Live count (total - indexer may be paused)
     const { count: liveCount } = await supabase
       .from('events')
-      .select('*', { count: 'exact', head: true })
-      .gte('created_at', yesterday);
+      .select('*', { count: 'exact', head: true });
     
     // New count (AGENT type - includes PENDING for radar visibility)
     const { count: newCount } = await supabase
@@ -73,7 +72,8 @@ export default async function Home({ searchParams }: PageProps) {
     // Apply tab filters
     switch (activeTab) {
       case 'live':
-        query = query.gte('created_at', yesterday);
+        // Show most recent events (no time restriction - indexer may be paused)
+        query = query.order('created_at', { ascending: false });
         break;
       case 'new':
         // New Agents tab: ONLY agent-related events

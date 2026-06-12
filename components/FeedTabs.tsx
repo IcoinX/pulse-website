@@ -12,7 +12,7 @@ interface FeedTabsProps {
 
 export default function FeedTabs({ activeTab, tabCounts = { live: 0, new: 0, trending: 0, research: 0 } }: FeedTabsProps) {
   const tabs: { id: FeedTab; label: string; icon: string }[] = [
-    { id: 'live', label: 'Live / Breaking', icon: '🔴' },
+    { id: 'live', label: 'Latest', icon: '⚡' },
     { id: 'new', label: 'New Agents', icon: '⚡' },
     { id: 'trending', label: 'Trending', icon: '🔥' },
     { id: 'research', label: 'Research', icon: '📊' },
