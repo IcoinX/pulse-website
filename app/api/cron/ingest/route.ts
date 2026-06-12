@@ -31,7 +31,7 @@ async function getNextEventId(supabase: ReturnType<typeof createClient>): Promis
     .select('event_id')
     .order('event_id', { ascending: false })
     .limit(1);
-  return ((data?.[0]?.event_id as number) || 6025) + 1;
+  return (((data as any)?.[0]?.event_id as number) || 6025) + 1;
 }
 
 async function fetchRSSItems(url: string, sourceName: string): Promise<{ title: string; link: string }[]> {
