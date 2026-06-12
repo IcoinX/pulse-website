@@ -20,9 +20,12 @@
     }
   ],
   "rewrites": [
+    { "source": "/feed", "destination": "/api/feeds" }
+  ],
+  "crons": [
     {
-      "source": "/feed",
-      "destination": "/api/feeds"
+      "path": "/api/cron/ingest",
+      "schedule": "0 0 * * *"
     }
   ]
 }
