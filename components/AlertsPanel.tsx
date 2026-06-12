@@ -21,9 +21,10 @@ interface BlockedSignal {
 
 interface AlertsPanelProps {
   agentSlug?: string;
+  onClose?: () => void;
 }
 
-export default function AlertsPanel({ agentSlug }: AlertsPanelProps) {
+export default function AlertsPanel({ agentSlug, onClose }: AlertsPanelProps) {
   const [status, setStatus] = useState<AlertStatus | null>(null);
   const [recentBlocked, setRecentBlocked] = useState<BlockedSignal[]>([]);
   const [loading, setLoading] = useState(true);
