@@ -40,10 +40,7 @@ export default async function BoostsPage() {
           <p style={{ margin: 0, color: '#666', fontSize: 14 }}>
             {totalBoosts} total signals of importance across all events
           </p>
-          {/* DEBUG */}
-          <p style={{ margin: '8px 0 0 0', color: '#fbbf24', fontSize: 12 }}>
-            Debug: {boosts?.length || 0} boosts loaded {error ? '| Error: ' + error.message : ''}
-          </p>
+
         </div>
         
         {error && (
