@@ -102,6 +102,8 @@ export async function GET(request: NextRequest) {
           continue;
         }
 
+        const now = new Date().toISOString();
+
         const { error } = await supabase.from('events').insert({
           chain_id: 8453,
           event_id: nextId++,
@@ -110,10 +112,10 @@ export async function GET(request: NextRequest) {
           status: 'PENDING',
           canonical_hash: canonicalHash,
           is_seed: false,
-          verification_status: 'PENDING',
-          verification_reason: `Ingested from ${source.name}`,
-          verified_by: null,
-          verified_at: null,
+          verification_status: 'VERIFIED',
+          verification_reason: `Auto-verified: trusted RSS source (${source.name})`,
+          verified_by: 'PULSE-Indexer',
+          verified_at: now,
         });
 
         if (error) {
