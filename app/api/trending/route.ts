@@ -11,33 +11,34 @@ const SOURCE_WEIGHTS: Record<string, number> = {
   'ONCHAIN': 100,
   'AGENT': 80,
   'GITHUB': 60,
-  'MEDIA': 40
+  'MEDIA': 40,
+  'AI': 50,
+  'CRYPTO': 45,
 };
 
 // Origin bonuses (platform quality signal)
 const ORIGIN_BONUSES: Record<string, number> = {
-  'VIRTUALS': 30,  // Most selective, highest quality
-  'BANKR': 25,     // Financial agents, serious builders
-  'CLANKER': 20,   // Volume + experimentation
-  'NATIVE': 10     // PULSE native agents
+  'VIRTUALS': 30,
+  'BANKR': 25,
+  'CLANKER': 20,
+  'NATIVE': 10
 };
 
-// Minimum items threshold (anti-n'importe-quoi rule)
+// Minimum items threshold
 const MIN_ITEMS = 3;
 const WINDOW_HOURS = 168; // 7 days
 
 export async function GET() {
   try {
-    // Get verified events from last 7 days
+    // Get events from last 7 days — include all verification statuses
+    // (RSS-ingested events are auto-verified from trusted sources)
     const sevenDaysAgo = new Date(Date.now() - WINDOW_HOURS * 60 * 60 * 1000).toISOString();
-    
-    // Get events: VERIFIED first, but include PENDING agents (for agent radar)
+
     const { data: events, error } = await supabase
       .from('events')
       .select('*')
-      .or('verification_status.eq.VERIFIED,and(verification_status.eq.PENDING,source_type.eq.AGENT)')
-      .gte('created_at', sevenDaysAgo)
       .in('source_type', ['ONCHAIN', 'AGENT', 'GITHUB', 'MEDIA', 'CRYPTO', 'AI'])
+      .gte('created_at', sevenDaysAgo)
       .order('created_at', { ascending: false })
       .limit(50);
 
@@ -48,13 +49,13 @@ export async function GET() {
       );
     }
 
-    // Anti-n'importe-quoi: if < 3 items, return empty with reason
+    // Anti-spam: if < 3 items, return empty with reason
     if (!events || events.length < MIN_ITEMS) {
       return NextResponse.json({
         items: [],
         meta: {
           reason: 'NOT_ENOUGH_SIGNALS',
-          message: 'Need at least 3 verified events in the last 7 days.',
+          message: 'Need at least 3 events in the last 7 days.',
           window: '7d',
           count: events?.length || 0,
           minRequired: MIN_ITEMS
@@ -63,24 +64,24 @@ export async function GET() {
     }
 
     const now = Date.now();
-    
+
     // Calculate trending score for each event
     const items = events.map((event) => {
       const eventTime = new Date(event.created_at).getTime();
       const ageHours = (now - eventTime) / (1000 * 60 * 60);
-      
-      // Recency score: linear decay over 7 days (168h)
+
+      // Recency score: linear decay over 7 days
       const recencyScore = Math.max(0, 100 - (ageHours * (100 / WINDOW_HOURS)));
-      
-      // Source weight (default 40 if unknown)
+
+      // Source weight
       const sourceScore = SOURCE_WEIGHTS[event.source_type] || 40;
-      
-      // Origin bonus (platform credibility)
+
+      // Origin bonus
       const originBonus = event.agent_origin ? (ORIGIN_BONUSES[event.agent_origin] || 0) : 0;
-      
-      // Verification multiplier: VERIFIED = 1.0, PENDING = 0.6
-      const verificationMultiplier = event.verification_status === 'VERIFIED' ? 1.0 : 0.6;
-      
+
+      // Verification multiplier: VERIFIED = 1.0, PENDING = 0.8 (trusted RSS)
+      const verificationMultiplier = event.verification_status === 'VERIFIED' ? 1.0 : 0.8;
+
       // Parse convergence score if available
       let convergenceScore: number | undefined;
       let convergenceClass: string | undefined;
@@ -89,19 +90,16 @@ export async function GET() {
         convergenceScore = parseFloat(convergenceMatch[1]);
         convergenceClass = convergenceMatch[2];
       }
-      
-      // Final score: if convergence available, boost by it; otherwise use legacy formula
+
+      // Final score
       let score: number;
       if (convergenceScore && convergenceScore >= 4.0) {
-        // Boost events with strong convergence
         score = Math.round((recencyScore * 0.4) + (convergenceScore * 10) + (originBonus * 0.2));
       } else {
-        // Legacy formula
         const rawScore = (recencyScore * 0.5) + (sourceScore * 0.3) + (originBonus * 0.2);
         score = Math.round(rawScore * verificationMultiplier);
       }
-      
-      // Determine age badge
+
       const ageDays = ageHours / 24;
       const ageBadge = ageDays < 7 ? 'NEW' : 'Established';
 
@@ -124,7 +122,7 @@ export async function GET() {
       };
     });
 
-    // Sort by score descending (boosted by convergence)
+    // Sort by score descending
     const sortedItems = items
       .sort((a, b) => b.score - a.score)
       .slice(0, 10)
