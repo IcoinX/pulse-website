@@ -10,11 +10,18 @@ const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://plojsqsjyk
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY!;
 
 const RSS_SOURCES = [
-  { url: 'https://cointelegraph.com/rss', name: 'CoinTelegraph', type: 'CRYPTO' },
-  { url: 'https://cryptopotato.com/feed/', name: 'CryptoPotato', type: 'CRYPTO' },
-  { url: 'https://blog.langchain.dev/rss/', name: 'LangChain Blog', type: 'AGENT' },
-  { url: 'https://huggingface.co/blog/feed.xml', name: 'Hugging Face', type: 'AI' },
-  { url: 'https://openai.com/blog/rss.xml', name: 'OpenAI Blog', type: 'AI' },
+  { url: 'https://cointelegraph.com/rss', name: 'CoinTelegraph', type: 'CRYPTO', trusted: true },
+  { url: 'https://www.coindesk.com/arc/outboundfeeds/rss/', name: 'CoinDesk', type: 'CRYPTO', trusted: true },
+  { url: 'https://cryptopotato.com/feed/', name: 'CryptoPotato', type: 'CRYPTO', trusted: false },
+  { url: 'https://decrypt.co/feed', name: 'Decrypt', type: 'CRYPTO', trusted: true },
+  { url: 'https://theblock.co/rss.xml', name: 'The Block', type: 'CRYPTO', trusted: true },
+  { url: 'https://blog.langchain.dev/rss/', name: 'LangChain Blog', type: 'AGENT', trusted: true },
+  { url: 'https://huggingface.co/blog/feed.xml', name: 'Hugging Face', type: 'AI', trusted: true },
+  { url: 'https://openai.com/blog/rss.xml', name: 'OpenAI Blog', type: 'AI', trusted: true },
+  { url: 'https://www.anthropic.com/blog/rss.xml', name: 'Anthropic', type: 'AI', trusted: true },
+  { url: 'https://deepmind.google/blog/rss/', name: 'DeepMind', type: 'AI', trusted: true },
+  { url: 'https://techcrunch.com/feed/', name: 'TechCrunch', type: 'TECH', trusted: true },
+  { url: 'https://www.theverge.com/rss/index.xml', name: 'The Verge', type: 'TECH', trusted: true },
 ];
 
 function generateHash(title: string, source: string): string {
@@ -102,19 +109,22 @@ export async function GET(request: NextRequest) {
           continue;
         }
 
-        const now = new Date().toISOString();
+        const isVerified = source.trusted;
+        const now = isVerified ? new Date().toISOString() : null;
 
         const { error } = await supabase.from('events').insert({
           chain_id: 8453,
           event_id: nextId++,
           title: item.title,
           source_type: source.type,
-          status: 'PENDING',
+          status: isVerified ? 'VERIFIED' : 'PENDING',
           canonical_hash: canonicalHash,
           is_seed: false,
-          verification_status: 'VERIFIED',
-          verification_reason: `Auto-verified: trusted RSS source (${source.name})`,
-          verified_by: 'PULSE-Indexer',
+          verification_status: isVerified ? 'VERIFIED' : 'PENDING',
+          verification_reason: isVerified
+            ? `Auto-verified: trusted source ${source.name}`
+            : `Ingested from ${source.name}`,
+          verified_by: isVerified ? 'PULSE-Indexer' : null,
           verified_at: now,
         });
 
