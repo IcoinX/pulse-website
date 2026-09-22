@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+  <title id="title">Pulse Protocol</title>
+  <desc id="desc">A pulse line inside a rounded square</desc>
+  <defs>
+    <linearGradient id="pulse" x1="8" y1="8" x2="56" y2="56" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#5DE1D0"/>
+      <stop offset="1" stop-color="#5AA7FF"/>
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="60" height="60" rx="18" fill="#111820" stroke="#293746" stroke-width="2"/>
+  <path d="M12 34h9l5-14 8 27 6-18 4 5h8" fill="none" stroke="url(#pulse)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
