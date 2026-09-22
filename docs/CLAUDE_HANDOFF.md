@@ -19,6 +19,19 @@ Updated 2026-09-22.
 
 The terminal source/repository was not present in the local workspace or visible as a separate Vercel project. The terminal should remain on the VPS for exchange keys, WebSockets, workers and trading services. To add the same logo there, locate its VPS source repository and copy `public/pulse-mark.svg` (or the equivalent SVG), then add it to the terminal header and favicon.
 
+## Terminal deployment facts (confirmed 2026-09-22)
+
+- Local source: `C:\Users\dumon\OneDrive\Bureau\Pulse Terminal`.
+- This is a local folder, not a Git repository: no `.git` directory and no remote.
+- VPS: Hostinger `srv1307320` (`178.16.129.127`).
+- Deployed code: `/opt/pulse-terminal/app`.
+- Runtime: `/opt/pulse-terminal/venv/bin/python server.py`, systemd service `pulse-terminal`, system user `pulse`.
+- Runtime data: `/var/lib/pulse-terminal` (user `pulse` only). Secrets: `/etc/pulse-terminal.env` (root-only).
+- Python listens only on `127.0.0.1:8787`; nginx proxies HTTPS for `app.pulseprotocol.co`; Certbot manages Let's Encrypt.
+- Deployment uses `deploy/deploy.sh` to archive/upload over SSH, then restart systemd. It excludes `.master_key`, `vault.json`, `.env` and runtime data.
+- Terminal branding is already deployed: `app/static/pulse-mark.svg`, SVG MIME handling in `app/server.py`, favicon/header branding on six HTML pages, and updated settings tab titles in `app/i18n/{fr,es}/settings.json`.
+- The MIME correction only enables SVG delivery; no trading logic, exchange settings, API keys or secrets changed.
+
 ## Do not change
 
 - Do not migrate the trading terminal to Vercel without a separate architecture review.
