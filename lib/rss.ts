@@ -1,6 +1,7 @@
 import { ProtocolEvent, FeedItem, ImpactScores } from '@/types';
 import { XMLParser } from 'fast-xml-parser';
 import { cache } from 'react';
+import { fetchWithinBudget } from './ingest-budget';
 
 // RSS Feed URLs
 export const RSS_FEEDS = {
@@ -36,16 +37,11 @@ let feedCache: {
 
 async function fetchRSSFeed(url: string, sourceName: string, category: string): Promise<ProtocolEvent[]> {
   try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10000);
-    
-    const response = await fetch(url, {
-      signal: controller.signal,
+    const response = await fetchWithinBudget(url, {
       headers: {
         'User-Agent': 'PULSE Protocol Feed Reader/1.0',
       },
-    });
-    clearTimeout(timeout);
+    }, Date.now() + 10000, 10000);
     
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);

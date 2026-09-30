@@ -21,7 +21,12 @@ The correction preserves sources, authentication, hashes, schema and normal inse
 
 ## Evidence
 
-- 6 helper tests and 6 handler tests passed; TypeScript check passed.
+- 6 helper tests, 6 handler tests and 2 public RSS tests passed; TypeScript check passed.
+- The public RSS reader also uses the shared body-aware 10s bound. Its parallel
+  fetching and existing warm cache are preserved. Final production feed GET:
+  200, success=true, count=70, about 1044ms.
+  OpenAI Blog and Anthropic returned 403; DeepMind Blog returned 404 in runtime
+  logs. Those upstream source failures are not described as fixed.
 - Cloud production build passed. Local build compiled/typechecked but could not collect
   other routes without their environment variables; it was not claimed as a full pass.
 - Real-source/real-database integration in dry-run mode: HTTP-style response 200,
@@ -35,10 +40,10 @@ The correction preserves sources, authentication, hashes, schema and normal inse
 
 ## Deployment
 
-Candidate assembled from Git HEAD a608af1 plus ONLY the changed route and new helper,
+Candidate assembled from Git HEAD a608af1 plus the changed route, new helper and RSS reader,
 excluding unrelated working-tree documentation and lockfile edits.
-New deployment: pulse-website-qpn94j753-icoinxs-projects.vercel.app
-ID: dpl_AGvXCHXEdxS1dwgxf9QuGetEjj5V.
+Final deployment: pulse-website-m2kh8bub7-icoinxs-projects.vercel.app
+ID: dpl_72Hp62bdPPbuTLe8bDqJD9p8MUnZ.
 Aliases updated: pulse-website-sigma.vercel.app and
 pulse-website-git-main-icoinxs-projects.vercel.app.
 Project's production alias also points to the new deployment.
