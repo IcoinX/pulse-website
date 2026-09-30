@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
+import { fetchWithinBudget } from '../../../../lib/ingest-budget';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -41,15 +42,11 @@ async function getNextEventId(supabase: any): Promise<number> {
   return (((data as any)?.[0]?.event_id as number) || 6025) + 1;
 }
 
-async function fetchRSSItems(url: string, sourceName: string): Promise<{ title: string; link: string }[]> {
+async function fetchRSSItems(url: string, deadline: number): Promise<{ title: string; link: string }[]> {
   try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 8000);
-    const res = await fetch(url, {
-      signal: controller.signal,
+    const res = await fetchWithinBudget(url, {
       headers: { 'User-Agent': 'PULSE-Indexer/2.0' },
-    });
-    clearTimeout(timeout);
+    }, deadline, 8000);
     if (!res.ok) return [];
     const xml = await res.text();
     const items: { title: string; link: string }[] = [];
@@ -84,30 +81,44 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'SUPABASE_SERVICE_KEY not configured' }, { status: 500 });
   }
 
-  const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+  const started = Date.now();
+  const dryRun = request.nextUrl.searchParams.get('dry_run') === '1';
+  const deadline = started + 45000; // 15s margin before Vercel's 60s limit.
+  const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
+    global: { fetch: (input, init) => fetchWithinBudget(input, init, deadline) },
+  });
 
   try {
     let nextId = await getNextEventId(supabase);
     let inserted = 0;
     let skipped = 0;
     let errors = 0;
+    let incomplete = false;
+    // Twelve independent feeds: one slow provider must not delay the other eleven.
+    const feeds = await Promise.all(RSS_SOURCES.map(async source => ({
+      source, items: await fetchRSSItems(source.url, deadline),
+    })));
 
-    for (const source of RSS_SOURCES) {
-      const items = await fetchRSSItems(source.url, source.name);
-
+    ingest: for (const { source, items } of feeds) {
       for (const item of items) {
+        if (Date.now() >= deadline - 1000) {
+          incomplete = true;
+          break ingest;
+        }
         const canonicalHash = generateHash(item.title, source.name);
 
-        const { data: existing } = await supabase
+        const { data: existing, error: lookupError } = await supabase
           .from('events')
           .select('id')
           .eq('canonical_hash', canonicalHash)
           .limit(1);
+        if (lookupError) { errors++; continue; }
 
         if (existing && existing.length > 0) {
           skipped++;
           continue;
         }
+        if (dryRun) { skipped++; continue; }
 
         const isVerified = source.trusted;
         const now = isVerified ? new Date().toISOString() : null;
@@ -136,12 +147,20 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const { count: total } = await supabase
-      .from('events')
-      .select('*', { count: 'exact', head: true });
+    let total: number | null = null;
+    if (!incomplete && Date.now() < deadline - 1000) {
+      const result = await supabase.from('events').select('*', { count: 'exact', head: true });
+      total = result.count;
+      if (result.error) errors++;
+    }
+    console.info(JSON.stringify({ event: 'ingest_completed', durationMs: Date.now() - started,
+      inserted, skipped, errors, incomplete }));
 
     return NextResponse.json({
-      success: true,
+      success: !incomplete && errors === 0,
+      incomplete,
+      dryRun,
+      durationMs: Date.now() - started,
       inserted,
       skipped,
       errors,
@@ -149,7 +168,7 @@ export async function GET(request: NextRequest) {
       timestamp: new Date().toISOString(),
     });
   } catch (error: unknown) {
-    const msg = error instanceof Error ? error.message : 'Unknown error';
-    return NextResponse.json({ success: false, error: msg }, { status: 500 });
+    console.error(JSON.stringify({ event: 'ingest_failed', durationMs: Date.now() - started }));
+    return NextResponse.json({ success: false, error: 'Ingestion failed; see server diagnostics' }, { status: 500 });
   }
 }
