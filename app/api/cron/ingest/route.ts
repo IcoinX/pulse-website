@@ -18,7 +18,7 @@ const RSS_SOURCES = [
   { url: 'https://theblock.co/rss.xml', name: 'The Block', type: 'CRYPTO', trusted: true },
   { url: 'https://blog.langchain.dev/rss/', name: 'LangChain Blog', type: 'AGENT', trusted: true },
   { url: 'https://huggingface.co/blog/feed.xml', name: 'Hugging Face', type: 'AI', trusted: true },
-  { url: 'https://openai.com/blog/rss.xml', name: 'OpenAI Blog', type: 'AI', trusted: true },
+  { url: 'https://openai.com/news/rss.xml', name: 'OpenAI Blog', type: 'AI', trusted: true },
   { url: 'https://www.anthropic.com/blog/rss.xml', name: 'Anthropic', type: 'AI', trusted: true },
   { url: 'https://deepmind.google/blog/rss/', name: 'DeepMind', type: 'AI', trusted: true },
   { url: 'https://techcrunch.com/feed/', name: 'TechCrunch', type: 'TECH', trusted: true },

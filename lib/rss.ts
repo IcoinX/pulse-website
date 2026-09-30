@@ -11,7 +11,7 @@ export const RSS_FEEDS = {
     { name: 'CryptoPotato', url: 'https://cryptopotato.com/feed/' },
   ],
   ai: [
-    { name: 'OpenAI Blog', url: 'https://openai.com/blog/rss.xml' },
+    { name: 'OpenAI Blog', url: 'https://openai.com/news/rss.xml' },
     { name: 'Anthropic', url: 'https://www.anthropic.com/blog/rss.xml' },
     { name: 'arXiv AI', url: 'http://export.arxiv.org/rss/cs.AI' },
     { name: 'DeepMind Blog', url: 'https://deepmind.google/blog/rss/' },
@@ -30,12 +30,19 @@ export const RSS_FEEDS = {
 // Cache duration in seconds
 const CACHE_DURATION = 300; // 5 minutes
 
-let feedCache: {
+export type FeedSnapshot = {
   data: ProtocolEvent[];
   timestamp: number;
-} | null = null;
+  checkedAt: number;
+  unavailableSources: string[];
+  availableSources: number;
+  partial: boolean;
+  stale: boolean;
+};
+let feedCache: FeedSnapshot | null = null;
+let pendingFetch: Promise<FeedSnapshot> | null = null;
 
-async function fetchRSSFeed(url: string, sourceName: string, category: string): Promise<ProtocolEvent[]> {
+async function fetchRSSFeed(url: string, sourceName: string, category: string): Promise<{items: ProtocolEvent[]; available: boolean}> {
   try {
     const response = await fetchWithinBudget(url, {
       headers: {
@@ -48,6 +55,7 @@ async function fetchRSSFeed(url: string, sourceName: string, category: string): 
     }
     
     const xml = await response.text();
+    if (!/<(?:rss|feed)(?:\s|>)/i.test(xml)) throw new Error('Invalid RSS response');
     
     // Simple regex parsing for RSS - using [\s\S] instead of 's' flag
     const items: ProtocolEvent[] = [];
@@ -142,10 +150,11 @@ async function fetchRSSFeed(url: string, sourceName: string, category: string): 
       xmlRemainder = xmlRemainder.slice(itemEndIndex);
     }
     
-    return items;
+    return { items, available: true };
   } catch (error) {
-    console.error(`Error fetching ${sourceName}:`, error);
-    return [];
+    // Source names are public; do not publish upstream exception payloads.
+    console.warn(`RSS source unavailable: ${sourceName}`);
+    return { items: [], available: false };
   }
 }
 
@@ -216,41 +225,43 @@ function extractTags(text: string, category: string): string[] {
   return tags.slice(0, 5);
 }
 
-export async function fetchAllFeeds(): Promise<ProtocolEvent[]> {
-  // Check cache
-  if (feedCache && Date.now() - feedCache.timestamp < CACHE_DURATION * 1000) {
-    return feedCache.data;
+async function refreshFeeds(): Promise<FeedSnapshot> {
+  const sources = Object.entries(RSS_FEEDS).flatMap(([category, entries]) =>
+    entries.map(source => ({ ...source, category })));
+  const results = await Promise.all(sources.map(source =>
+    fetchRSSFeed(source.url, source.name, source.category)));
+  const unavailableSources = sources.filter((_, index) => !results[index].available)
+    .map(source => source.name);
+  const availableSources = sources.length - unavailableSources.length;
+  const checkedAt = Date.now();
+  // Preserve last-known articles on a total upstream outage, marked as stale.
+  if (availableSources === 0) {
+    feedCache = {
+      data: feedCache?.data || [], timestamp: feedCache?.timestamp || checkedAt,
+      checkedAt, unavailableSources, availableSources, partial: true, stale: true,
+    };
+    return feedCache;
   }
-  
-  const allFeeds: ProtocolEvent[] = [];
-  
-  // Fetch all feeds in parallel
-  const feedPromises: Promise<ProtocolEvent[]>[] = [];
-  
-  Object.entries(RSS_FEEDS).forEach(([category, sources]) => {
-    sources.forEach(source => {
-      feedPromises.push(fetchRSSFeed(source.url, source.name, category));
-    });
-  });
-  
-  const results = await Promise.allSettled(feedPromises);
-  
-  results.forEach((result, index) => {
-    if (result.status === 'fulfilled') {
-      allFeeds.push(...result.value);
-    }
-  });
-  
-  // Sort by timestamp (newest first)
+  const allFeeds = results.flatMap(result => result.items);
   allFeeds.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-  
-  // Update cache
-  feedCache = {
-    data: allFeeds,
-    timestamp: Date.now(),
-  };
-  
-  return allFeeds;
+  feedCache = { data: allFeeds, timestamp: checkedAt, checkedAt, unavailableSources,
+    availableSources, partial: unavailableSources.length > 0, stale: false };
+  return feedCache;
+}
+
+export async function fetchAllFeedsSnapshot(): Promise<FeedSnapshot> {
+  // Check cache
+  const cacheDuration = feedCache?.stale ? 30000 : CACHE_DURATION * 1000;
+  if (feedCache && Date.now() - feedCache.checkedAt < cacheDuration) {
+    return feedCache;
+  }
+  if (!pendingFetch) pendingFetch = refreshFeeds().finally(() => { pendingFetch = null; });
+  return pendingFetch;
+}
+
+// Preserve the original array API for existing internal consumers.
+export async function fetchAllFeeds(): Promise<ProtocolEvent[]> {
+  return (await fetchAllFeedsSnapshot()).data;
 }
 
 export function getFeedByCategory(feeds: ProtocolEvent[], category: string): ProtocolEvent[] {

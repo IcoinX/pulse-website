@@ -1,15 +1,6 @@
 {
   "headers": [
     {
-      "source": "/api/feeds",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, s-maxage=300, stale-while-revalidate=600"
-        }
-      ]
-    },
-    {
       "source": "/api/feeds/:id",
       "headers": [
         {
